@@ -2,7 +2,10 @@ package lastpass
 
 import (
 	"bytes"
+	"encoding/base64"
 	"io"
+	"io/ioutil"
+	"net/url"
 )
 
 type Account struct {
@@ -16,7 +19,12 @@ type Account struct {
 }
 
 func (c *Client) Accounts() ([]*Account, error) {
-	chunks, err := extractChunks(bytes.NewReader(c.blob), []uint32{chunkIDFromString("ACCT")})
+	blob, err := c.blob()
+	if err != nil {
+		return nil, err
+	}
+
+	chunks, err := extractChunks(bytes.NewReader(blob), []uint32{chunkIDFromString("ACCT")})
 	if err != nil {
 		return nil, err
 	}
@@ -31,6 +39,37 @@ func (c *Client) Accounts() ([]*Account, error) {
 		accounts[i] = account
 	}
 	return accounts, nil
+}
+
+func (c *Client) blob() ([]byte, error) {
+	u, err := url.Parse("https://lastpass.com/getaccts.php")
+	if err != nil {
+		return nil, err
+	}
+	u.RawQuery = url.Values{
+		"mobile":    []string{"1"},
+		"b64":       []string{"1"},
+		"hash":      []string{"0.0"},
+		"PHPSESSID": []string{c.session.id},
+	}.Encode()
+
+	res, err := c.httpClient.Get(u.String())
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	b, err = base64.StdEncoding.DecodeString(string(b))
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
 }
 
 func parseAccount(r io.Reader, encryptionKey []byte) (*Account, error) {

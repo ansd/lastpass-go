@@ -11,7 +11,7 @@ import (
 type session struct {
 	id               string
 	passwdIterations int
-	token string
+	token            string
 }
 
 func (c *Client) initSession() error {
@@ -79,7 +79,7 @@ func (c *Client) login() error {
 	defer res.Body.Close()
 	var response struct {
 		SessionID string `xml:"sessionid,attr"`
-		Token string `xml:"token,attr"`
+		Token     string `xml:"token,attr"`
 	}
 	err = xml.NewDecoder(res.Body).Decode(&response)
 	if err != nil {
