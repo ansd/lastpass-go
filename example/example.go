@@ -1,10 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"strings"
-	"fmt"
+
 	"github.com/ansd/lastpass-go"
 )
 
@@ -17,21 +18,36 @@ func main() {
 	username := lines[0]
 	password := lines[1]
 
-	c, err := lastpass.Login(username, password)
+	client, err := lastpass.Login(username, password)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	accounts, err := c.Accounts()
+	printAccounts(client)
+
+	accountID, err := client.Add("coolSite", "coolUser", "nicePwd", "https://coolUrl", "social", "cool Notes")
 	if err != nil {
 		log.Fatalln(err)
 	}
-	for i, acct := range accounts{
-	fmt.Printf("account-%d: %+v\n", i,*acct)
+	fmt.Printf("Added accountID=%s\n", accountID)
+
+	printAccounts(client)
+
+	fmt.Printf("Deleting accountID=%s\n", accountID)
+	err = client.Delete(accountID)
+	if err != nil {
+		log.Fatalln(err)
 	}
 
-	err = c.Delete(accounts[0])
+	printAccounts(client)
+}
+
+func printAccounts(client *lastpass.Client) {
+	accounts, err := client.Accounts()
 	if err != nil {
 		log.Fatalln(err)
+	}
+	for i, acct := range accounts {
+		fmt.Printf("account-%d: %+v\n", i, *acct)
 	}
 }

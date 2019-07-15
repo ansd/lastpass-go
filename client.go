@@ -3,10 +3,9 @@ package lastpass
 import (
 	"encoding/xml"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/cookiejar"
-	"net/url"
+	netURL "net/url"
 )
 
 type Client struct {
@@ -39,13 +38,13 @@ func Login(username, password string) (*Client, error) {
 	return c, nil
 }
 
-func (c *Client) Delete(account *Account) error {
+func (c *Client) Delete(accountID string) error {
 	res, err := c.httpClient.PostForm(
 		"https://lastpass.com/show_website.php",
-		url.Values{
+		netURL.Values{
 			"extjs":  []string{"1"},
 			"delete": []string{"1"},
-			"aid":    []string{account.ID},
+			"aid":    []string{accountID},
 			"token":  []string{c.session.token},
 		})
 	if err != nil {
@@ -66,11 +65,51 @@ func (c *Client) Delete(account *Account) error {
 		return err
 	}
 
-	fmt.Printf("response:%+v\n", response)
-
 	if response.Result.Msg != "accountdeleted" {
 		return errors.New("failed to delete account")
 	}
 
 	return nil
+}
+
+func (c *Client) Add(accountName, userName, password, url, group, notes string) (accountID string, err error) {
+	res, err := c.httpClient.PostForm(
+		"https://lastpass.com/show_website.php",
+		netURL.Values{
+			"extjs":     []string{"1"},
+			"token":     []string{c.session.token},
+			"method":    []string{"cli"},
+			"pwprotect": []string{"off"},
+			"aid":       []string{"0"},
+			"url":       []string{string(encodeHex([]byte(url)))},
+			"name":      []string{encryptAES256CbcBase64(accountName, c.encryptionKey)},
+			"grouping":  []string{encryptAES256CbcBase64(group, c.encryptionKey)},
+			"username":  []string{encryptAES256CbcBase64(userName, c.encryptionKey)},
+			"password":  []string{encryptAES256CbcBase64(password, c.encryptionKey)},
+			"extra":     []string{encryptAES256CbcBase64(notes, c.encryptionKey)},
+		})
+	if err != nil {
+		return "", err
+	}
+
+	type Result struct {
+		Msg             string `xml:"msg,attr"`
+		AccountID       string `xml:"aid,attr"`
+		AccountsVersion string `xml:"accts_version,attr"`
+	}
+	var response struct {
+		Result Result `xml:"result"`
+	}
+
+	defer res.Body.Close()
+	err = xml.NewDecoder(res.Body).Decode(&response)
+	if err != nil {
+		return "", err
+	}
+
+	if response.Result.Msg != "accountadded" {
+		return "", errors.New("failed to add account")
+	}
+
+	return response.Result.AccountID, err
 }

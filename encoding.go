@@ -1,8 +1,10 @@
 package lastpass
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
@@ -132,16 +134,22 @@ func skipItem(r io.Reader) error {
 	return nil
 }
 
-// func pkcs7Pad(data []byte, blockSize int) []byte {
-// 	padding := blockSize - len(data)%blockSize
-// 	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
-// 	return append(data, padtext...)
-// }
+func pkcs7Pad(data []byte, blockSize int) []byte {
+	padding := blockSize - len(data)%blockSize
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(data, padtext...)
+}
 
 func pkcs7Unpad(data []byte) []byte {
 	size := len(data)
 	unpadding := int(data[size-1])
 	return data[:(size - unpadding)]
+}
+
+func encodeBase64(b []byte) []byte {
+	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(b)))
+	base64.StdEncoding.Encode(encoded, b)
+	return encoded
 }
 
 func decodeBase64(b []byte) []byte {
@@ -215,4 +223,32 @@ func decryptAES256(data []byte, encryptionKey []byte) string {
 		return string(decryptAes256CbcBase64(data, encryptionKey))
 	}
 	panic("Input doesn't seem to be AES-256 encrypted")
+}
+
+func encryptAES256CbcBase64(plaintext string, encryptionKey []byte) string {
+	padded := pkcs7Pad([]byte(plaintext), aes.BlockSize)
+	if len(padded)%aes.BlockSize != 0 {
+		panic("plaintext is not a multiple of the block size")
+	}
+
+	block, err := aes.NewCipher(encryptionKey)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	ciphertext := make([]byte, aes.BlockSize+len(padded))
+	iv := ciphertext[:aes.BlockSize]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		panic(err)
+	}
+
+	mode := cipher.NewCBCEncrypter(block, iv)
+	mode.CryptBlocks(ciphertext[aes.BlockSize:], padded)
+
+	ivBase64Encoded := encodeBase64(iv)
+	ciphertextBase64Encoded := encodeBase64(ciphertext[aes.BlockSize:])
+
+	// use the same format as the CLI does it in
+	// https://github.com/lastpass/lastpass-cli/blob/2a70884ed7ef48a8d621687acb96202cc354245b/cipher.c#L296
+	return "!" + string(ivBase64Encoded) + "|" + string(ciphertextBase64Encoded)
 }
