@@ -50,6 +50,8 @@ func (c *Client) Add(accountName, userName, password, url, group, notes string) 
 	return result.AccountID, nil
 }
 
+// Update the account with the given account.ID
+// returns an error if the account.ID does not exist in LastPass
 func (c *Client) Update(account *Account) error {
 	result, err := c.upsert(account)
 	if err != nil {
@@ -107,11 +109,11 @@ func (c *Client) upsert(acct *Account) (result, error) {
 			"pwprotect": []string{"off"},
 			"aid":       []string{acct.ID},
 			"url":       []string{string(encodeHex([]byte(acct.URL)))},
-			"name":      []string{encryptAES256CbcBase64(acct.Name, c.encryptionKey)},
-			"grouping":  []string{encryptAES256CbcBase64(acct.Group, c.encryptionKey)},
-			"username":  []string{encryptAES256CbcBase64(acct.Username, c.encryptionKey)},
-			"password":  []string{encryptAES256CbcBase64(acct.Password, c.encryptionKey)},
-			"extra":     []string{encryptAES256CbcBase64(acct.Notes, c.encryptionKey)},
+			"name":      []string{encryptAES256Cbc(acct.Name, c.encryptionKey)},
+			"grouping":  []string{encryptAES256Cbc(acct.Group, c.encryptionKey)},
+			"username":  []string{encryptAES256Cbc(acct.Username, c.encryptionKey)},
+			"password":  []string{encryptAES256Cbc(acct.Password, c.encryptionKey)},
+			"extra":     []string{encryptAES256Cbc(acct.Notes, c.encryptionKey)},
 		})
 	if err != nil {
 		return response.Result, err

@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 
 	"golang.org/x/crypto/pbkdf2"
@@ -152,12 +153,6 @@ func encodeBase64(b []byte) []byte {
 	return encoded
 }
 
-func decodeBase64(b []byte) []byte {
-	d := make([]byte, len(b))
-	n, _ := base64.StdEncoding.Decode(d, b)
-	return d[:n]
-}
-
 func decryptAes256CbcPlain(data []byte, encryptionKey []byte) []byte {
 	block, err := aes.NewCipher(encryptionKey)
 	if err != nil {
@@ -170,39 +165,39 @@ func decryptAes256CbcPlain(data []byte, encryptionKey []byte) []byte {
 	return pkcs7Unpad(out)
 }
 
-func decryptAes256CbcBase64(data []byte, encryptionKey []byte) []byte {
-	block, err := aes.NewCipher(encryptionKey)
-	if err != nil {
-		panic(err.Error())
-	}
-	iv, in := decodeBase64(data[:24]), decodeBase64(data[24:])
-	dec := cipher.NewCBCDecrypter(block, iv)
-	out := make([]byte, len(in))
-	dec.CryptBlocks(out, in)
-	return pkcs7Unpad(out)
-}
-
 func decryptAES256(data []byte, encryptionKey []byte) (string, error) {
 	size := len(data)
 	size16 := size % 16
 	size64 := size % 64
 
+	ecbWarning := "ECB is insecure and was used by older LastPass clients; " +
+		"you might want to change your master password which re-encrypts your LastPass accounts using CBC"
+
 	switch {
 	case size == 0:
 		return "", nil
+
 	case size16 == 0:
-		return "", errors.New("decryptAes256EcbPlain() not implemented. Please open an issue.")
+		return "", errors.New("input seems to be AES 256 ECB Plain encrypted; " + ecbWarning)
 	case size64 == 0 || size64 == 24 || size64 == 44:
-		return "", errors.New("decryptAes256EcbBase64() not implemented. Please open an issue.")
+		return "", errors.New("input seems to be AES 256 ECB Base64 encrypted; " + ecbWarning)
+
 	case size16 == 1:
-		return string(decryptAes256CbcPlain(data[1:], encryptionKey)), nil
+		// check for the same format as the CLI does it in (v1.3.3)
+		// https://github.com/lastpass/lastpass-cli/blob/a84aa9629957033082c5930968dda7fbed751dfa/cipher.c#L160
+		if size >= 33 && data[0] == '!' {
+			return string(decryptAes256CbcPlain(data[1:], encryptionKey)), nil
+		}
+		return "", fmt.Errorf("couldn't AES 256 CBC Plain decrypt (size of input data = %dbytes)", size)
+
 	case size64 == 6 || size64 == 26 || size64 == 50:
-		return string(decryptAes256CbcBase64(data, encryptionKey)), nil
+		return "", errors.New("input seems to be AES 256 CBC Base64 encrypted; please open an issue")
 	}
-	return "", errors.New("Input doesn't seem to be AES-256 encrypted")
+
+	return "", errors.New("input doesn't seem to be AES 256 encrypted")
 }
 
-func encryptAES256CbcBase64(plaintext string, encryptionKey []byte) string {
+func encryptAES256Cbc(plaintext string, encryptionKey []byte) string {
 	padded := pkcs7Pad([]byte(plaintext), aes.BlockSize)
 	if len(padded)%aes.BlockSize != 0 {
 		panic("plaintext is not a multiple of the block size")
