@@ -9,9 +9,9 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"io"
 
-	"github.com/ansd/lastpass-go/ecb"
 	"golang.org/x/crypto/pbkdf2"
 )
 
@@ -182,47 +182,24 @@ func decryptAes256CbcBase64(data []byte, encryptionKey []byte) []byte {
 	return pkcs7Unpad(out)
 }
 
-func decryptAes256EcbPlain(data []byte, encryptionKey []byte) []byte {
-	block, err := aes.NewCipher(encryptionKey)
-	if err != nil {
-		panic(err.Error())
-	}
-	dec := ecb.NewECBDecrypter(block)
-	out := make([]byte, len(data))
-	dec.CryptBlocks(out, data)
-	return pkcs7Unpad(out)
-}
-
-func decryptAes256EcbBase64(data []byte, encryptionKey []byte) []byte {
-	block, err := aes.NewCipher(encryptionKey)
-	if err != nil {
-		panic(err.Error())
-	}
-	data = decodeBase64(data)
-	dec := ecb.NewECBDecrypter(block)
-	out := make([]byte, len(data))
-	dec.CryptBlocks(out, data)
-	return pkcs7Unpad(out)
-}
-
-func decryptAES256(data []byte, encryptionKey []byte) string {
+func decryptAES256(data []byte, encryptionKey []byte) (string, error) {
 	size := len(data)
 	size16 := size % 16
 	size64 := size % 64
 
 	switch {
 	case size == 0:
-		return ""
+		return "", nil
 	case size16 == 0:
-		return string(decryptAes256EcbPlain(data, encryptionKey))
+		return "", errors.New("decryptAes256EcbPlain() not implemented. Please open an issue.")
 	case size64 == 0 || size64 == 24 || size64 == 44:
-		return string(decryptAes256EcbBase64(data, encryptionKey))
+		return "", errors.New("decryptAes256EcbBase64() not implemented. Please open an issue.")
 	case size16 == 1:
-		return string(decryptAes256CbcPlain(data[1:], encryptionKey))
+		return string(decryptAes256CbcPlain(data[1:], encryptionKey)), nil
 	case size64 == 6 || size64 == 26 || size64 == 50:
-		return string(decryptAes256CbcBase64(data, encryptionKey))
+		return string(decryptAes256CbcBase64(data, encryptionKey)), nil
 	}
-	panic("Input doesn't seem to be AES-256 encrypted")
+	return "", errors.New("Input doesn't seem to be AES-256 encrypted")
 }
 
 func encryptAES256CbcBase64(plaintext string, encryptionKey []byte) string {

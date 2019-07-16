@@ -77,19 +77,35 @@ func parseAccount(r io.Reader, encryptionKey []byte) (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	name, err := readItem(r)
 	if err != nil {
 		return nil, err
 	}
+	namePlain, err := decryptAES256(name, encryptionKey)
+	if err != nil {
+		return nil, err
+	}
+
 	group, err := readItem(r)
 	if err != nil {
 		return nil, err
 	}
+	groupPlain, err := decryptAES256(group, encryptionKey)
+	if err != nil {
+		return nil, err
+	}
+
 	url, err := readItem(r)
 	if err != nil {
 		return nil, err
 	}
+
 	notes, err := readItem(r)
+	if err != nil {
+		return nil, err
+	}
+	notesPlain, err := decryptAES256(notes, encryptionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -105,18 +121,27 @@ func parseAccount(r io.Reader, encryptionKey []byte) (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
+	usernamePlain, err := decryptAES256(username, encryptionKey)
+	if err != nil {
+		return nil, err
+	}
+
 	password, err := readItem(r)
+	if err != nil {
+		return nil, err
+	}
+	passwordPlain, err := decryptAES256(password, encryptionKey)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Account{
 		string(id),
-		decryptAES256(name, encryptionKey),
-		decryptAES256(username, encryptionKey),
-		decryptAES256(password, encryptionKey),
+		namePlain,
+		usernamePlain,
+		passwordPlain,
 		string(decodeHex(url)),
-		decryptAES256(group, encryptionKey),
-		decryptAES256(notes, encryptionKey),
+		groupPlain,
+		notesPlain,
 	}, nil
 }
