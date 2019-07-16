@@ -10,14 +10,17 @@ import (
 )
 
 func main() {
+
+	// Read LastPass username and password from file
 	b, err := ioutil.ReadFile("credentials.txt")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 	lines := strings.Split(string(b), "\n")
 	username := lines[0]
 	password := lines[1]
 
+	// Login()
 	client, err := lastpass.Login(username, password)
 	if err != nil {
 		log.Fatalln(err)
@@ -25,29 +28,57 @@ func main() {
 
 	printAccounts(client)
 
-	accountID, err := client.Add("coolSite", "coolUser", "nicePwd", "https://coolUrl", "social", "cool Notes")
+	// Add() account
+	addedID, err := client.Add("coolSite", "coolUser", "nicePwd", "https://coolUrl", "social", "cool Notes")
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Printf("Added accountID=%s\n", accountID)
+	fmt.Printf("\nAdded accountID=%s\n", addedID)
 
-	printAccounts(client)
+	accts := printAccounts(client)
 
-	fmt.Printf("Deleting accountID=%s\n", accountID)
-	err = client.Delete(accountID)
+	for _, acct := range accts {
+		if acct.ID == addedID {
+			acct.Username = "updated user"
+			acct.Password = "updated password"
+			fmt.Printf("\nUpdating accountID=%s\n", addedID)
+
+			// Update() account
+			err = client.Update(acct)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			printAccounts(client)
+		}
+	}
+
+	fmt.Printf("\nDeleting accountID=%s\n", addedID)
+	// Delete() account
+	err = client.Delete(addedID)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	printAccounts(client)
+
+	// Logout()
 }
 
-func printAccounts(client *lastpass.Client) {
+func printAccounts(client *lastpass.Client) []*lastpass.Account {
+	// read Accounts()
 	accounts, err := client.Accounts()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	for i, acct := range accounts {
-		fmt.Printf("account-%d: %+v\n", i, *acct)
+
+	if len(accounts) == 0 {
+		fmt.Println("no accounts")
+		return nil
 	}
+
+	fmt.Println("accounts:")
+	for _, acct := range accounts {
+		fmt.Printf("%+v\n", *acct)
+	}
+	return accounts
 }

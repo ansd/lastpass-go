@@ -38,6 +38,29 @@ func Login(username, password string) (*Client, error) {
 	return c, nil
 }
 
+func (c *Client) Add(accountName, userName, password, url, group, notes string) (accountID string, err error) {
+	acct := &Account{"0", accountName, userName, password, url, group, notes}
+	result, err := c.upsert(acct)
+	if err != nil {
+		return "", err
+	}
+	if result.Msg != "accountadded" {
+		return "", errors.New("failed to add account")
+	}
+	return result.AccountID, nil
+}
+
+func (c *Client) Update(account *Account) error {
+	result, err := c.upsert(account)
+	if err != nil {
+		return err
+	}
+	if result.Msg != "accountupdated" {
+		return errors.New("failed to update account")
+	}
+	return nil
+}
+
 func (c *Client) Delete(accountID string) error {
 	res, err := c.httpClient.PostForm(
 		"https://lastpass.com/show_website.php",
@@ -51,28 +74,30 @@ func (c *Client) Delete(accountID string) error {
 		return err
 	}
 
-	type Result struct {
-		Msg             string `xml:"msg,attr"`
-		AccountsVersion string `xml:"accts_version,attr"`
-	}
 	var response struct {
-		Result Result `xml:"result"`
+		Result result `xml:"result"`
 	}
-
 	defer res.Body.Close()
 	err = xml.NewDecoder(res.Body).Decode(&response)
 	if err != nil {
 		return err
 	}
-
 	if response.Result.Msg != "accountdeleted" {
 		return errors.New("failed to delete account")
 	}
-
 	return nil
 }
 
-func (c *Client) Add(accountName, userName, password, url, group, notes string) (accountID string, err error) {
+type result struct {
+	Msg       string `xml:"msg,attr"`
+	AccountID string `xml:"aid,attr"`
+}
+
+func (c *Client) upsert(acct *Account) (result, error) {
+	var response struct {
+		Result result `xml:"result"`
+	}
+
 	res, err := c.httpClient.PostForm(
 		"https://lastpass.com/show_website.php",
 		netURL.Values{
@@ -80,36 +105,19 @@ func (c *Client) Add(accountName, userName, password, url, group, notes string) 
 			"token":     []string{c.session.token},
 			"method":    []string{"cli"},
 			"pwprotect": []string{"off"},
-			"aid":       []string{"0"},
-			"url":       []string{string(encodeHex([]byte(url)))},
-			"name":      []string{encryptAES256CbcBase64(accountName, c.encryptionKey)},
-			"grouping":  []string{encryptAES256CbcBase64(group, c.encryptionKey)},
-			"username":  []string{encryptAES256CbcBase64(userName, c.encryptionKey)},
-			"password":  []string{encryptAES256CbcBase64(password, c.encryptionKey)},
-			"extra":     []string{encryptAES256CbcBase64(notes, c.encryptionKey)},
+			"aid":       []string{acct.ID},
+			"url":       []string{string(encodeHex([]byte(acct.URL)))},
+			"name":      []string{encryptAES256CbcBase64(acct.Name, c.encryptionKey)},
+			"grouping":  []string{encryptAES256CbcBase64(acct.Group, c.encryptionKey)},
+			"username":  []string{encryptAES256CbcBase64(acct.Username, c.encryptionKey)},
+			"password":  []string{encryptAES256CbcBase64(acct.Password, c.encryptionKey)},
+			"extra":     []string{encryptAES256CbcBase64(acct.Notes, c.encryptionKey)},
 		})
 	if err != nil {
-		return "", err
-	}
-
-	type Result struct {
-		Msg             string `xml:"msg,attr"`
-		AccountID       string `xml:"aid,attr"`
-		AccountsVersion string `xml:"accts_version,attr"`
-	}
-	var response struct {
-		Result Result `xml:"result"`
+		return response.Result, err
 	}
 
 	defer res.Body.Close()
 	err = xml.NewDecoder(res.Body).Decode(&response)
-	if err != nil {
-		return "", err
-	}
-
-	if response.Result.Msg != "accountadded" {
-		return "", errors.New("failed to add account")
-	}
-
-	return response.Result.AccountID, err
+	return response.Result, err
 }

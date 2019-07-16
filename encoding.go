@@ -248,7 +248,7 @@ func encryptAES256CbcBase64(plaintext string, encryptionKey []byte) string {
 	ivBase64Encoded := encodeBase64(iv)
 	ciphertextBase64Encoded := encodeBase64(ciphertext[aes.BlockSize:])
 
-	// use the same format as the CLI does it in
-	// https://github.com/lastpass/lastpass-cli/blob/2a70884ed7ef48a8d621687acb96202cc354245b/cipher.c#L296
+	// use the same format as the CLI does it in (v1.3.3)
+	// https://github.com/lastpass/lastpass-cli/blob/a84aa9629957033082c5930968dda7fbed751dfa/cipher.c#L296
 	return "!" + string(ivBase64Encoded) + "|" + string(ciphertextBase64Encoded)
 }

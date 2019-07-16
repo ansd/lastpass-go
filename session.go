@@ -50,18 +50,12 @@ func (c *Client) requestIterationCount() error {
 	if err != nil {
 		return err
 	}
-
 	c.session.passwdIterations = count
-
-	fmt.Printf("iteration count = %d\n", c.session.passwdIterations)
 
 	return nil
 }
 
 func (c *Client) login() error {
-	loginHash := string(c.loginHash())
-	fmt.Printf("login hash = %s\n", loginHash)
-
 	res, err := c.httpClient.PostForm(
 		"https://lastpass.com/login.php",
 		url.Values{
@@ -69,7 +63,7 @@ func (c *Client) login() error {
 			"web":        []string{"1"},
 			"xml":        []string{"1"},
 			"username":   []string{c.username},
-			"hash":       []string{loginHash},
+			"hash":       []string{string(c.loginHash())},
 			"iterations": []string{fmt.Sprint(c.session.passwdIterations)},
 		})
 	if err != nil {
@@ -85,14 +79,8 @@ func (c *Client) login() error {
 	if err != nil {
 		return err
 	}
-
 	c.session.id = response.SessionID
 	c.session.token = response.Token
-
-	url, _ := url.Parse("https://lastpass.com/")
-	fmt.Printf("cookies = %v\n", c.httpClient.Jar.Cookies(url))
-	fmt.Printf("session id  = %v\n", c.session.id)
-	fmt.Printf("session token  = %v\n", c.session.token)
 
 	return nil
 }
