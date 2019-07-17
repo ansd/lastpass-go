@@ -39,6 +39,7 @@ func Login(username, password string) (*Client, error) {
 	return c, nil
 }
 
+// invalidate session cookie
 func (c *Client) Logout() error {
 	res, err := c.httpClient.PostForm(
 		"https://lastpass.com/logout.php",
@@ -75,10 +76,13 @@ func (c *Client) Add(accountName, userName, password, url, group, notes string) 
 func (c *Client) Update(account *Account) error {
 	result, err := c.upsert(account)
 	if err != nil {
+		if err.Error() == "empty response body" {
+			return fmt.Errorf("could not find account with ID=%s", account.ID)
+		}
 		return err
 	}
 	if result.Msg != "accountupdated" {
-		return errors.New("failed to update account")
+		return fmt.Errorf("failed to update account (ID=%s)", account.ID)
 	}
 	return nil
 }
@@ -99,6 +103,11 @@ func (c *Client) Delete(accountID string) error {
 	var response struct {
 		Result result `xml:"result"`
 	}
+
+	if res.Header.Get("Content-Length") == "0" {
+		return fmt.Errorf("could not find account with ID=%s", accountID)
+	}
+
 	defer res.Body.Close()
 	err = xml.NewDecoder(res.Body).Decode(&response)
 	if err != nil {
@@ -137,6 +146,10 @@ func (c *Client) upsert(acct *Account) (result, error) {
 		})
 	if err != nil {
 		return response.Result, err
+	}
+
+	if res.Header.Get("Content-Length") == "0" {
+		return response.Result, errors.New("empty response body")
 	}
 
 	defer res.Body.Close()

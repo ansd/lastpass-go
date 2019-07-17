@@ -3,8 +3,10 @@ package lastpass
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 )
 
@@ -41,8 +43,24 @@ func (c *Client) Accounts() ([]*Account, error) {
 	return accounts, nil
 }
 
+// returns nil, nil if no account matches accountID
+func (c *Client) Account(accountID string) (*Account, error) {
+	accts, err := c.Accounts()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, acct := range accts {
+		if acct.ID == accountID {
+			return acct, nil
+		}
+	}
+	return nil, nil
+}
+
 func (c *Client) blob() ([]byte, error) {
-	u, err := url.Parse("https://lastpass.com/getaccts.php")
+	endpoint := "https://lastpass.com/getaccts.php"
+	u, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -56,6 +74,10 @@ func (c *Client) blob() ([]byte, error) {
 	res, err := c.httpClient.Get(u.String())
 	if err != nil {
 		return nil, err
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("GET %s: %s", endpoint, res.Status)
 	}
 
 	defer res.Body.Close()
