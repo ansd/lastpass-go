@@ -62,6 +62,10 @@ func main() {
 	printAccounts(client)
 
 	// Logout()
+	err = client.Logout()
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 func printAccounts(client *lastpass.Client) []*lastpass.Account {

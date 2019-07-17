@@ -110,6 +110,7 @@ func parseAccount(r io.Reader, encryptionKey []byte) (*Account, error) {
 		return nil, err
 	}
 
+	// skip 'favourite' and 'sharedFromAccountID'
 	for i := 0; i < 2; i++ {
 		err = skipItem(r)
 		if err != nil {

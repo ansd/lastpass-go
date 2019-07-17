@@ -3,6 +3,7 @@ package lastpass
 import (
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	netURL "net/url"
@@ -36,6 +37,25 @@ func Login(username, password string) (*Client, error) {
 	}
 
 	return c, nil
+}
+
+func (c *Client) Logout() error {
+	res, err := c.httpClient.PostForm(
+		"https://lastpass.com/logout.php",
+		netURL.Values{
+			"method":     []string{"cli"},
+			"noredirect": []string{"1"},
+			"token":      []string{c.session.token},
+		})
+	if err != nil {
+		return err
+	}
+
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to logout (HTTP status %s)", res.Status)
+	}
+	return nil
 }
 
 func (c *Client) Add(accountName, userName, password, url, group, notes string) (accountID string, err error) {
