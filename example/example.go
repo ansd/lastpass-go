@@ -37,8 +37,8 @@ func main() {
 	}
 
 	// Add() account
-	addedID, err := client.Add("coolSite", "coolUser",
-		"coolPwd", "https://coolUrl", "social", "cool Notes")
+	addedID, err := client.Add("my site", "my user",
+		"my pwd", "https://myURL", "social", "my notes")
 	if err != nil {
 		log.Fatalln(err)
 	}

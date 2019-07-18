@@ -56,7 +56,6 @@ var _ = Describe("Integration", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(acct).To(Equal(newAcct))
 			})
-
 		})
 
 		Describe("Delete", func() {

@@ -72,6 +72,10 @@ func decodeBase64(b []byte) []byte {
 }
 
 func encryptAES256Cbc(plaintext string, encryptionKey []byte) (string, error) {
+	if len(plaintext) == 0 {
+		return "", nil
+	}
+
 	padded := pkcs7Pad([]byte(plaintext), aes.BlockSize)
 
 	block, err := aes.NewCipher(encryptionKey)
