@@ -7,9 +7,7 @@ import (
 )
 
 var _ = Describe("Integration", func() {
-
 	Context("when account exists", func() {
-
 		var newAcct *Account
 
 		BeforeEach(func() {

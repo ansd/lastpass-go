@@ -1,3 +1,4 @@
+// Package lastpass implements a LastPass client.
 package lastpass
 
 import (
@@ -9,6 +10,8 @@ import (
 	netURL "net/url"
 )
 
+// Client represents a LastPass client.
+// A Client can be logged in to a single account at a given time.
 type Client struct {
 	httpClient    *http.Client
 	username      string
@@ -17,7 +20,9 @@ type Client struct {
 	session       *session
 }
 
-func Login(username, password string) (*Client, error) {
+// Login authenticates with the LastPass servers.
+// Currently, Login does not yet support two-factor authentication.
+func Login(username, masterPassword string) (*Client, error) {
 	cookieJar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
@@ -28,7 +33,7 @@ func Login(username, password string) (*Client, error) {
 			Jar: cookieJar,
 		},
 		username: username,
-		password: password,
+		password: masterPassword,
 	}
 
 	err = c.initSession()
@@ -39,7 +44,7 @@ func Login(username, password string) (*Client, error) {
 	return c, nil
 }
 
-// invalidate session cookie
+// Logout invalidates the session token of the Client.
 func (c *Client) Logout() error {
 	res, err := c.httpClient.PostForm(
 		"https://lastpass.com/logout.php",
@@ -59,6 +64,7 @@ func (c *Client) Logout() error {
 	return nil
 }
 
+// Add adds a new LastPass Account returning the newly created accountID.
 func (c *Client) Add(accountName, userName, password, url, group, notes string) (accountID string, err error) {
 	acct := &Account{"0", accountName, userName, password, url, group, notes}
 	result, err := c.upsert(acct)
@@ -71,8 +77,8 @@ func (c *Client) Add(accountName, userName, password, url, group, notes string) 
 	return result.AccountID, nil
 }
 
-// Update the account with the given account.ID
-// returns an error if the account.ID does not exist in LastPass
+// Update updates the account with the given account.ID.
+// When the account.ID does not exist in LastPass, an error is returned.
 func (c *Client) Update(account *Account) error {
 	result, err := c.upsert(account)
 	if err != nil {
@@ -87,6 +93,7 @@ func (c *Client) Update(account *Account) error {
 	return nil
 }
 
+// Delete deletes the LastPass Account with the given accountID.
 func (c *Client) Delete(accountID string) error {
 	res, err := c.httpClient.PostForm(
 		"https://lastpass.com/show_website.php",

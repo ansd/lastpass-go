@@ -7,6 +7,8 @@ import (
 	"net/url"
 )
 
+// Account represents a LastPass item.
+// An item can be a password, payment card, bank account, etc., or a custom item type.
 type Account struct {
 	ID       string
 	Name     string
@@ -17,7 +19,8 @@ type Account struct {
 	Notes    string
 }
 
-// returns (nil, nil) if no account matches accountID
+// Account is a convenience method which returns an Account for the given accountID.
+// Underneath, Account calls Accounts.
 func (c *Client) Account(accountID string) (*Account, error) {
 	accts, err := c.Accounts()
 	if err != nil {
@@ -32,6 +35,7 @@ func (c *Client) Account(accountID string) (*Account, error) {
 	return nil, nil
 }
 
+// Accounts lists all LastPass accounts.
 func (c *Client) Accounts() ([]*Account, error) {
 	endpoint := "https://lastpass.com/getaccts.php"
 	u, err := url.Parse(endpoint)
