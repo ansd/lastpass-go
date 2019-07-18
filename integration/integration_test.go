@@ -38,7 +38,7 @@ var _ = Describe("Integration", func() {
 			Expect(client.Delete(newAcct.ID)).To(Succeed())
 		})
 
-		Describe("Add", func() {
+		Describe("Add()", func() {
 			It("adds the account", func() {
 				acct, err := client.Account(newAcct.ID)
 				Expect(err).NotTo(HaveOccurred())
@@ -46,7 +46,15 @@ var _ = Describe("Integration", func() {
 			})
 		})
 
-		Describe("Update", func() {
+		Describe("Accounts()", func() {
+			It("lists accounts", func() {
+				accts, err := client.Accounts()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(accts).To(ContainElement(newAcct))
+			})
+		})
+
+		Describe("Update()", func() {
 			It("updates the account", func() {
 				newAcct.Username = "updated user"
 				newAcct.Password = "updated pwd"
@@ -58,7 +66,7 @@ var _ = Describe("Integration", func() {
 			})
 		})
 
-		Describe("Delete", func() {
+		Describe("Delete()", func() {
 			It("deletes the account", func() {
 				Expect(client.Delete(newAcct.ID)).To(Succeed())
 
