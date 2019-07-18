@@ -129,6 +129,27 @@ func (c *Client) upsert(acct *Account) (result, error) {
 		Result result `xml:"result"`
 	}
 
+	nameEncrypted, err := encryptAES256Cbc(acct.Name, c.encryptionKey)
+	if err != nil {
+		return response.Result, err
+	}
+	userNameEncrypted, err := encryptAES256Cbc(acct.Username, c.encryptionKey)
+	if err != nil {
+		return response.Result, err
+	}
+	passwordEncrypted, err := encryptAES256Cbc(acct.Password, c.encryptionKey)
+	if err != nil {
+		return response.Result, err
+	}
+	groupEncrypted, err := encryptAES256Cbc(acct.Group, c.encryptionKey)
+	if err != nil {
+		return response.Result, err
+	}
+	notesEncrypted, err := encryptAES256Cbc(acct.Notes, c.encryptionKey)
+	if err != nil {
+		return response.Result, err
+	}
+
 	res, err := c.httpClient.PostForm(
 		"https://lastpass.com/show_website.php",
 		netURL.Values{
@@ -138,11 +159,11 @@ func (c *Client) upsert(acct *Account) (result, error) {
 			"pwprotect": []string{"off"},
 			"aid":       []string{acct.ID},
 			"url":       []string{string(encodeHex([]byte(acct.URL)))},
-			"name":      []string{encryptAES256Cbc(acct.Name, c.encryptionKey)},
-			"grouping":  []string{encryptAES256Cbc(acct.Group, c.encryptionKey)},
-			"username":  []string{encryptAES256Cbc(acct.Username, c.encryptionKey)},
-			"password":  []string{encryptAES256Cbc(acct.Password, c.encryptionKey)},
-			"extra":     []string{encryptAES256Cbc(acct.Notes, c.encryptionKey)},
+			"name":      []string{nameEncrypted},
+			"grouping":  []string{groupEncrypted},
+			"username":  []string{userNameEncrypted},
+			"password":  []string{passwordEncrypted},
+			"extra":     []string{notesEncrypted},
 		})
 	if err != nil {
 		return response.Result, err

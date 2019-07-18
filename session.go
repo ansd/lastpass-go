@@ -9,24 +9,18 @@ import (
 )
 
 type session struct {
-	id               string
 	passwdIterations int
 	token            string
 }
 
 func (c *Client) initSession() error {
 	c.session = &session{}
-
-	err := c.requestIterationCount()
-	if err != nil {
+	if err := c.requestIterationCount(); err != nil {
 		return err
 	}
-
-	err = c.login()
-	if err != nil {
+	if err := c.login(); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -72,14 +66,11 @@ func (c *Client) login() error {
 
 	defer res.Body.Close()
 	var response struct {
-		SessionID string `xml:"sessionid,attr"`
-		Token     string `xml:"token,attr"`
+		Token string `xml:"token,attr"`
 	}
-	err = xml.NewDecoder(res.Body).Decode(&response)
-	if err != nil {
+	if err = xml.NewDecoder(res.Body).Decode(&response); err != nil {
 		return err
 	}
-	c.session.id = response.SessionID
 	c.session.token = response.Token
 
 	return nil
