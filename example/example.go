@@ -17,10 +17,10 @@ func main() {
 	}
 	lines := strings.Split(string(b), "\n")
 	username := lines[0]
-	password := lines[1]
+	masterPassword := lines[1]
 
 	// Login()
-	client, err := lastpass.Login(username, password)
+	client, err := lastpass.Login(username, masterPassword)
 	if err != nil {
 		log.Fatalln(err)
 	}
