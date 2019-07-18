@@ -19,22 +19,6 @@ type Account struct {
 	Notes    string
 }
 
-// Account is a convenience method which returns an Account for the given accountID.
-// Underneath, Account calls Accounts.
-func (c *Client) Account(accountID string) (*Account, error) {
-	accts, err := c.Accounts()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, acct := range accts {
-		if acct.ID == accountID {
-			return acct, nil
-		}
-	}
-	return nil, nil
-}
-
 // Accounts lists all LastPass accounts.
 func (c *Client) Accounts() ([]*Account, error) {
 	endpoint := "https://lastpass.com/getaccts.php"

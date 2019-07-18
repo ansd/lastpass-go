@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"strings"
@@ -26,46 +25,40 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	// Add() account
+	addedID, err := client.Add("my site", "my user",
+		"my pwd", "https://myURL", "my group", "my notes")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	// read all Accounts()
 	accounts, err := client.Accounts()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Println("accounts:")
+
+	var addedAccount *lastpass.Account
 	for _, acct := range accounts {
-		fmt.Printf("%+v\n", *acct)
-	}
-
-	// Add() account
-	addedID, err := client.Add("my site", "my user",
-		"my pwd", "https://myURL", "social", "my notes")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	// read single Account()
-	account, err := client.Account(addedID)
-	if err != nil {
-		log.Fatalln(err)
+		if acct.ID == addedID {
+			addedAccount = acct
+		}
 	}
 
 	// Update() account
-	account.Username = "updated user"
-	account.Password = "updated password"
-	err = client.Update(account)
-	if err != nil {
+	addedAccount.Username = "updated user"
+	addedAccount.Password = "updated password"
+	if err = client.Update(addedAccount); err != nil {
 		log.Fatalln(err)
 	}
 
 	// Delete() account
-	err = client.Delete(addedID)
-	if err != nil {
+	if err = client.Delete(addedID); err != nil {
 		log.Fatalln(err)
 	}
 
 	// Logout()
-	err = client.Logout()
-	if err != nil {
+	if err = client.Logout(); err != nil {
 		log.Fatalln(err)
 	}
 }

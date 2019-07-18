@@ -38,7 +38,7 @@ var _ = Describe("Integration", func() {
 
 		Describe("Add()", func() {
 			It("adds the account", func() {
-				acct, err := client.Account(newAcct.ID)
+				acct, err := accountForID(client, newAcct.ID)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(acct).To(Equal(newAcct))
 			})
@@ -58,7 +58,7 @@ var _ = Describe("Integration", func() {
 				newAcct.Password = "updated pwd"
 				Expect(client.Update(newAcct)).To(Succeed())
 
-				acct, err := client.Account(newAcct.ID)
+				acct, err := accountForID(client, newAcct.ID)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(acct).To(Equal(newAcct))
 			})
@@ -68,7 +68,7 @@ var _ = Describe("Integration", func() {
 			It("deletes the account", func() {
 				Expect(client.Delete(newAcct.ID)).To(Succeed())
 
-				acct, err := client.Account(newAcct.ID)
+				acct, err := accountForID(client, newAcct.ID)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(acct).To(BeNil())
 			})
@@ -92,3 +92,16 @@ var _ = Describe("Integration", func() {
 		})
 	})
 })
+
+func accountForID(c *Client, accountID string) (*Account, error) {
+	accts, err := c.Accounts()
+	if err != nil {
+		return nil, err
+	}
+	for _, acct := range accts {
+		if acct.ID == accountID {
+			return acct, nil
+		}
+	}
+	return nil, nil
+}
