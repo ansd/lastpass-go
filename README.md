@@ -34,7 +34,7 @@ import "github.com/ansd/lastpass-go"
 ## Usage
 
 ```go
-// Create default Client
+// create default Client
 client := &lastpass.Client{}
 
 // Login()
@@ -50,6 +50,7 @@ var addedAccount *lastpass.Account
 for _, acct := range accounts {
 	if acct.ID == addedID {
 		addedAccount = acct
+		break
 	}
 }
 

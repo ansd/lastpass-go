@@ -44,6 +44,7 @@ func main() {
 	for _, acct := range accounts {
 		if acct.ID == addedID {
 			addedAccount = acct
+			break
 		}
 	}
 
