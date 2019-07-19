@@ -1,6 +1,7 @@
 package lastpass
 
 import (
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"net/http"
@@ -21,7 +22,7 @@ type Account struct {
 
 // Accounts lists all LastPass accounts.
 func (c *Client) Accounts() ([]*Account, error) {
-	endpoint := "https://lastpass.com/getaccts.php"
+	endpoint := c.baseURL() + "/getaccts.php"
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, err
@@ -83,6 +84,10 @@ func (c *Client) Accounts() ([]*Account, error) {
 		if err != nil {
 			return nil, err
 		}
+		url, err := hex.DecodeString(acct.URLBase64)
+		if err != nil {
+			return nil, err
+		}
 		group, err := decryptAES256Cbc(acct.GroupEncrypted, c.encryptionKey)
 		if err != nil {
 			return nil, err
@@ -97,7 +102,7 @@ func (c *Client) Accounts() ([]*Account, error) {
 			Name:     name,
 			Username: username,
 			Password: password,
-			URL:      string(decodeHex([]byte(acct.URLBase64))),
+			URL:      string(url),
 			Group:    group,
 			Notes:    notes,
 		}

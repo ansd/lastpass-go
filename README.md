@@ -2,7 +2,7 @@
 
 This is an unofficial LastPass client.
 
-This is work in progress.
+This is work in progress. Therefore, the API is likely to change.
 
 This client is based on and extends https://github.com/mattn/lastpass-go.
 
@@ -34,12 +34,15 @@ import "github.com/ansd/lastpass-go"
 ## Usage
 
 ```go
+// Create default Client
+client := &lastpass.Client{}
+
 // Login()
-client, _ := lastpass.Login(username, masterPassword)
+client.Login(username, masterPassword)
 
 // Add() account
 addedID, _ := client.Add("my site", "my user", "my pwd", "https://myURL", "my group", "my notes")
-  
+
 // read all Accounts()
 accounts, _ := client.Accounts()
 

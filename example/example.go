@@ -19,9 +19,11 @@ func main() {
 	username := lines[0]
 	masterPassword := lines[1]
 
+	// Create the default Client
+	client := &lastpass.Client{}
+
 	// Login()
-	client, err := lastpass.Login(username, masterPassword)
-	if err != nil {
+	if err = client.Login(username, masterPassword); err != nil {
 		log.Fatalln(err)
 	}
 

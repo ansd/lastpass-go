@@ -26,7 +26,7 @@ func (c *Client) initSession() error {
 
 func (c *Client) requestIterationCount() error {
 	res, err := c.httpClient.PostForm(
-		"https://lastpass.com/iterations.php",
+		c.baseURL()+"/iterations.php",
 		url.Values{
 			"email": []string{c.username},
 		})
@@ -51,13 +51,12 @@ func (c *Client) requestIterationCount() error {
 
 func (c *Client) login() error {
 	res, err := c.httpClient.PostForm(
-		"https://lastpass.com/login.php",
+		c.baseURL()+"/login.php",
 		url.Values{
-			"method":     []string{"mobile"},
-			"web":        []string{"1"},
+			"method":     []string{"cli"},
 			"xml":        []string{"1"},
 			"username":   []string{c.username},
-			"hash":       []string{string(c.loginHash())},
+			"hash":       []string{c.loginHash()},
 			"iterations": []string{fmt.Sprint(c.session.passwdIterations)},
 		})
 	if err != nil {

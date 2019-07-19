@@ -27,8 +27,8 @@ var _ = BeforeSuite(func() {
 	username := lines[0]
 	password := lines[1]
 
-	client, err = lastpass.Login(username, password)
-	Expect(err).NotTo(HaveOccurred())
+	client = &lastpass.Client{}
+	Expect(client.Login(username, password)).To(Succeed())
 })
 
 var _ = AfterSuite(func() {

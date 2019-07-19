@@ -15,16 +15,16 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-func (c *Client) loginHash() []byte {
+func (c *Client) loginHash() string {
 	iterations := c.session.passwdIterations
 	key := encryptionKey(c.username, c.password, iterations)
 	c.encryptionKey = key
 
 	if iterations == 1 {
-		b := sha256.Sum256([]byte(string(encodeHex(key)) + c.password))
-		return encodeHex(b[:])
+		b := sha256.Sum256([]byte(hex.EncodeToString(key) + c.password))
+		return hex.EncodeToString(b[:])
 	}
-	return encodeHex(pbkdf2.Key(key, []byte(c.password), 1, 32, sha256.New))
+	return hex.EncodeToString(pbkdf2.Key(key, []byte(c.password), 1, 32, sha256.New))
 }
 
 func encryptionKey(username, password string, passwdIterations int) []byte {
@@ -33,18 +33,6 @@ func encryptionKey(username, password string, passwdIterations int) []byte {
 		return b[:]
 	}
 	return pbkdf2.Key([]byte(password), []byte(username), passwdIterations, 32, sha256.New)
-}
-
-func encodeHex(src []byte) []byte {
-	dst := make([]byte, hex.EncodedLen(len(src)))
-	hex.Encode(dst, src)
-	return dst
-}
-
-func decodeHex(b []byte) []byte {
-	d := make([]byte, len(b))
-	n, _ := hex.Decode(d, b)
-	return d[:n]
 }
 
 func pkcs7Pad(data []byte, blockSize int) []byte {

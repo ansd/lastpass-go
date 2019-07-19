@@ -2,6 +2,7 @@
 package lastpass
 
 import (
+	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -13,6 +14,8 @@ import (
 // Client represents a LastPass client.
 // A Client can be logged in to a single account at a given time.
 type Client struct {
+	// base URL of LastPass servers; defaults to "https://lastpass.com"
+	BaseURL       string
 	httpClient    *http.Client
 	username      string
 	password      string
@@ -22,32 +25,23 @@ type Client struct {
 
 // Login authenticates with the LastPass servers.
 // Currently, Login does not yet support two-factor authentication.
-func Login(username, masterPassword string) (*Client, error) {
+func (c *Client) Login(username, masterPassword string) error {
 	cookieJar, err := cookiejar.New(nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	c := &Client{
-		httpClient: &http.Client{
-			Jar: cookieJar,
-		},
-		username: username,
-		password: masterPassword,
+	c.httpClient = &http.Client{
+		Jar: cookieJar,
 	}
-
-	err = c.initSession()
-	if err != nil {
-		return nil, err
-	}
-
-	return c, nil
+	c.username = username
+	c.password = masterPassword
+	return c.initSession()
 }
 
 // Logout invalidates the session token of the Client.
 func (c *Client) Logout() error {
 	res, err := c.httpClient.PostForm(
-		"https://lastpass.com/logout.php",
+		c.baseURL()+"/logout.php",
 		netURL.Values{
 			"method":     []string{"cli"},
 			"noredirect": []string{"1"},
@@ -96,7 +90,7 @@ func (c *Client) Update(account *Account) error {
 // Delete deletes the LastPass Account with the given accountID.
 func (c *Client) Delete(accountID string) error {
 	res, err := c.httpClient.PostForm(
-		"https://lastpass.com/show_website.php",
+		c.baseURL()+"/show_website.php",
 		netURL.Values{
 			"extjs":  []string{"1"},
 			"delete": []string{"1"},
@@ -158,14 +152,14 @@ func (c *Client) upsert(acct *Account) (result, error) {
 	}
 
 	res, err := c.httpClient.PostForm(
-		"https://lastpass.com/show_website.php",
+		c.baseURL()+"/show_website.php",
 		netURL.Values{
 			"extjs":     []string{"1"},
 			"token":     []string{c.session.token},
 			"method":    []string{"cli"},
 			"pwprotect": []string{"off"},
 			"aid":       []string{acct.ID},
-			"url":       []string{string(encodeHex([]byte(acct.URL)))},
+			"url":       []string{hex.EncodeToString([]byte(acct.URL))},
 			"name":      []string{nameEncrypted},
 			"grouping":  []string{groupEncrypted},
 			"username":  []string{userNameEncrypted},
@@ -183,4 +177,11 @@ func (c *Client) upsert(acct *Account) (result, error) {
 	defer res.Body.Close()
 	err = xml.NewDecoder(res.Body).Decode(&response)
 	return response.Result, err
+}
+
+func (c *Client) baseURL() string {
+	if c.BaseURL == "" {
+		return "https://lastpass.com"
+	}
+	return c.BaseURL
 }
