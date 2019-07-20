@@ -72,13 +72,10 @@ func (c *Client) Add(accountName, userName, password, url, group, notes string) 
 }
 
 // Update updates the account with the given account.ID.
-// When the account.ID does not exist in LastPass, an error is returned.
+// If account.ID does not exist in LastPass, an *AccountNotFoundError is returned.
 func (c *Client) Update(account *Account) error {
 	result, err := c.upsert(account)
 	if err != nil {
-		if err.Error() == "empty response body" {
-			return fmt.Errorf("could not find account with ID=%s", account.ID)
-		}
 		return err
 	}
 	if result.Msg != "accountupdated" {
@@ -88,6 +85,7 @@ func (c *Client) Update(account *Account) error {
 }
 
 // Delete deletes the LastPass Account with the given accountID.
+// If accountID does not exist in LastPass, an *AccountNotFoundError is returned.
 func (c *Client) Delete(accountID string) error {
 	res, err := c.httpClient.PostForm(
 		c.baseURL()+"/show_website.php",
@@ -106,7 +104,7 @@ func (c *Client) Delete(accountID string) error {
 	}
 
 	if res.Header.Get("Content-Length") == "0" {
-		return fmt.Errorf("could not find account with ID=%s", accountID)
+		return &AccountNotFoundError{accountID}
 	}
 
 	defer res.Body.Close()
@@ -171,7 +169,7 @@ func (c *Client) upsert(acct *Account) (result, error) {
 	}
 
 	if res.Header.Get("Content-Length") == "0" {
-		return response.Result, errors.New("empty response body")
+		return response.Result, &AccountNotFoundError{acct.ID}
 	}
 
 	defer res.Body.Close()

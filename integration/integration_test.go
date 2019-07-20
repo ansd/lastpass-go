@@ -76,18 +76,17 @@ var _ = Describe("Integration", func() {
 	})
 
 	Context("when accout does not exist", func() {
-		Describe("Update", func() {
-			It("errors", func() {
-				acct := &Account{ID: "nonExistingID"}
-				Expect(client.Update(acct)).To(MatchError(
-					"could not find account with ID=nonExistingID"))
+		id := "nonExistingID"
+		Describe("Update()", func() {
+			It("returns AccountNotFoundError", func() {
+				acct := &Account{ID: id}
+				Expect(client.Update(acct)).To(MatchError(&AccountNotFoundError{ID: id}))
 			})
 		})
 
-		Describe("Delete", func() {
-			It("errors", func() {
-				Expect(client.Delete("nonExistingID")).To(MatchError(
-					"could not find account with ID=nonExistingID"))
+		Describe("Delete()", func() {
+			It("returns AccountNotFoundError", func() {
+				Expect(client.Delete(id)).To(MatchError(&AccountNotFoundError{ID: id}))
 			})
 		})
 	})

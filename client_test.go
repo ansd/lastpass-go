@@ -145,7 +145,7 @@ var _ = Describe("Client", func() {
 			})
 		})
 
-		Context("when operating on a single account", func() {
+		Context("when successfully operating on a single account", func() {
 			var rspMsg string
 			JustBeforeEach(func() {
 				server.AppendHandlers(
@@ -208,6 +208,30 @@ var _ = Describe("Client", func() {
 				})
 				It("requests /show_website.php with correct aid and delete=1", func() {
 					Expect(client.Delete(acct.ID)).To(Succeed())
+				})
+			})
+		})
+
+		Context("when account does not exist", func() {
+			BeforeEach(func() {
+				header := http.Header{}
+				header.Set("Content-Length", "0")
+				server.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest(http.MethodPost, "/show_website.php"),
+						ghttp.RespondWith(http.StatusOK, nil, header),
+					),
+				)
+			})
+			Describe("Update()", func() {
+				It("returns an *AccountNotFound error", func() {
+					Expect(client.Update(acct)).To(MatchError(&AccountNotFoundError{acct.ID}))
+				})
+			})
+			Describe("Delete()", func() {
+				It("returns an *AccountNotFound error", func() {
+					id := "notExisting"
+					Expect(client.Delete(id)).To(MatchError(&AccountNotFoundError{id}))
 				})
 			})
 		})
