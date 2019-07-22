@@ -15,16 +15,16 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-func (c *Client) loginHash() string {
+func (c *Client) loginHash(username, password string) string {
 	iterations := c.session.passwdIterations
-	key := encryptionKey(c.username, c.password, iterations)
+	key := encryptionKey(username, password, iterations)
 	c.encryptionKey = key
 
 	if iterations == 1 {
-		b := sha256.Sum256([]byte(hex.EncodeToString(key) + c.password))
+		b := sha256.Sum256([]byte(hex.EncodeToString(key) + password))
 		return hex.EncodeToString(b[:])
 	}
-	return hex.EncodeToString(pbkdf2.Key(key, []byte(c.password), 1, 32, sha256.New))
+	return hex.EncodeToString(pbkdf2.Key(key, []byte(password), 1, 32, sha256.New))
 }
 
 func encryptionKey(username, password string, passwdIterations int) []byte {

@@ -17,8 +17,6 @@ type Client struct {
 	// base URL of LastPass servers; defaults to "https://lastpass.com"
 	BaseURL       string
 	httpClient    *http.Client
-	username      string
-	password      string
 	encryptionKey []byte
 	session       *session
 }
@@ -33,9 +31,7 @@ func (c *Client) Login(username, masterPassword string) error {
 	c.httpClient = &http.Client{
 		Jar: cookieJar,
 	}
-	c.username = username
-	c.password = masterPassword
-	return c.initSession()
+	return c.initSession(username, masterPassword)
 }
 
 // Logout invalidates the session token of the Client.

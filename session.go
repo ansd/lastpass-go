@@ -13,22 +13,22 @@ type session struct {
 	token            string
 }
 
-func (c *Client) initSession() error {
+func (c *Client) initSession(username, password string) error {
 	c.session = &session{}
-	if err := c.requestIterationCount(); err != nil {
+	if err := c.requestIterationCount(username); err != nil {
 		return err
 	}
-	if err := c.login(); err != nil {
+	if err := c.login(username, password); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Client) requestIterationCount() error {
+func (c *Client) requestIterationCount(username string) error {
 	res, err := c.httpClient.PostForm(
 		c.baseURL()+"/iterations.php",
 		url.Values{
-			"email": []string{c.username},
+			"email": []string{username},
 		})
 	if err != nil {
 		return err
@@ -49,14 +49,14 @@ func (c *Client) requestIterationCount() error {
 	return nil
 }
 
-func (c *Client) login() error {
+func (c *Client) login(username, password string) error {
 	res, err := c.httpClient.PostForm(
 		c.baseURL()+"/login.php",
 		url.Values{
 			"method":     []string{"cli"},
 			"xml":        []string{"1"},
-			"username":   []string{c.username},
-			"hash":       []string{c.loginHash()},
+			"username":   []string{username},
+			"hash":       []string{c.loginHash(username, password)},
 			"iterations": []string{fmt.Sprint(c.session.passwdIterations)},
 		})
 	if err != nil {
