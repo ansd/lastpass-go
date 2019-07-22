@@ -17,17 +17,10 @@ var _ = Describe("Client", func() {
 	var client *Client
 	var server *ghttp.Server
 	var acct *Account
-	var form url.Values
-	const user = "lastpass-go@gmx.de"
-	const passwd = "thisAccountDoesN0tExist :-)"
-	const passwdIterations = "100100"
-	const token = "fakeToken"
-	contentTypeVerifier := ghttp.VerifyContentType("application/x-www-form-urlencoded")
 
 	BeforeEach(func() {
 		server = ghttp.NewServer()
 		client = &Client{BaseURL: server.URL()}
-		form = url.Values{}
 		acct = &Account{
 			ID:       "test ID",
 			Name:     "test site",
@@ -43,7 +36,60 @@ var _ = Describe("Client", func() {
 		server.Close()
 	})
 
-	Context("when user is logged in", func() {
+	AssertUnauthenticatedBehavior := func() {
+		Describe("Accounts()", func() {
+			It("returns UnauthenticatedError", func() {
+				accts, err := client.Accounts()
+				Expect(accts).To(BeNil())
+				Expect(err).To(MatchError(&UnauthenticatedError{}))
+			})
+		})
+		Describe("Add()", func() {
+			It("returns UnauthenticatedError", func() {
+				addedID, err := client.Add(
+					acct.Name,
+					acct.Username,
+					acct.Password,
+					acct.URL,
+					acct.Group,
+					acct.Notes,
+				)
+				Expect(addedID).To(BeEmpty())
+				Expect(err).To(MatchError(&UnauthenticatedError{}))
+			})
+		})
+		Describe("Update()", func() {
+			It("returns UnauthenticatedError", func() {
+				Expect(client.Update(acct)).To(MatchError(&UnauthenticatedError{}))
+			})
+		})
+		Describe("Delete()", func() {
+			It("returns UnauthenticatedError", func() {
+				Expect(client.Delete(acct.ID)).To(MatchError(&UnauthenticatedError{}))
+			})
+		})
+		Describe("Logout()", func() {
+			It("succeeds", func() {
+				Expect(client.Logout()).To(Succeed())
+			})
+		})
+	}
+
+	Context("when Client never logged in", func() {
+		AssertUnauthenticatedBehavior()
+		AfterEach(func() {
+			Expect(server.ReceivedRequests()).To(BeEmpty())
+		})
+	})
+
+	Context("when Client is logged in", func() {
+		var form url.Values
+		const user = "lastpass-go@gmx.de"
+		const passwd = "thisAccountDoesN0tExist :-)"
+		const passwdIterations = "100100"
+		const token = "fakeToken"
+		contentTypeVerifier := ghttp.VerifyContentType("application/x-www-form-urlencoded")
+
 		BeforeEach(func() {
 			loginForm := url.Values{}
 			loginForm.Set("method", "cli")
@@ -74,27 +120,22 @@ var _ = Describe("Client", func() {
 			})
 		})
 
-		Describe("Logout()", func() {
+		Context("when session is live", func() {
+			rsp := `<?xml version="1.0" encoding="UTF-8"?>
+<response>
+    <ok accts_version="111"/>
+</response>`
 			BeforeEach(func() {
-				form.Set("method", "cli")
-				form.Set("noredirect", "1")
-
 				server.AppendHandlers(
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest(http.MethodPost, "/logout.php"),
-						contentTypeVerifier,
-						ghttp.VerifyForm(form),
-						ghttp.RespondWith(http.StatusOK, ""),
+						ghttp.VerifyRequest(http.MethodPost, "/login_check.php"),
+						ghttp.RespondWith(http.StatusOK, rsp),
 					),
 				)
 			})
-			It("requests /logout.php", func() {
-				Expect(client.Logout()).To(Succeed())
-			})
-		})
 
-		Describe("Accounts()", func() {
-			const rsp = `<?xml version="1.0" encoding="UTF-8"?>
+			Describe("Accounts()", func() {
+				const rsp = `<?xml version="1.0" encoding="UTF-8"?>
 <response>
 		<accounts accts_version="7" updated_enc="1" encrypted_username="oPESriXvEY2ueIIThKKVjAiq6XfbtiQCskxw9egZYJQ=" cbc="1">
 				<account name="!Sd7ykqSvqcfaJhAzuJ2qkA==|Qu7rG7ItX2NQpXGXCCAoCw==" urid="0" id="redacted1" url="68747470733a2f2f7369746531" m="" http="" fav="0" favico="0" autologin="0" basic_auth="0" group="!BqCZIGQw3tcL8jfEulTKSw==|B5hQA6I0/diUEVAD8hzwXA==" fiid="redacted" genpw="0" extra="!NQgdpU3aNJLSEh2FUIaURg==|GXMdUvoG+BhQ1U/jKSp6kg==" isbookmark="0" never_autofill="0" last_touch="0" last_modified="1563546859" sn="0" realm="" sharedfromaid="" pwprotect="0" launch_count="0" username="!s0V0uZIaoFAoEy+1EWsyrw==|4uKEWau+7UuI5EqkkWhaag==" groupid="0">
@@ -108,132 +149,189 @@ var _ = Describe("Client", func() {
 				</account>
 		</accounts>
 </response>`
+				BeforeEach(func() {
+					server.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest(http.MethodGet, "/getaccts.php", "requestsrc=cli"),
+							ghttp.RespondWith(http.StatusOK, rsp),
+						),
+					)
+				})
+				It("requests /getaccts.php", func() {
+					accts, err := client.Accounts()
+					Expect(err).NotTo(HaveOccurred())
+					Expect(accts).To(ConsistOf(
+						&Account{
+							ID:       "redacted1",
+							Name:     "name1",
+							Username: "user1",
+							Password: "pwd1",
+							URL:      "https://site1",
+							Group:    "folder1",
+							Notes:    "notes1",
+						},
+						&Account{
+							ID:    "redacted2",
+							Name:  "name2",
+							URL:   "http://sn",
+							Group: "folder1",
+							Notes: "some secure note",
+						},
+						&Account{
+							ID:   "redacted3",
+							Name: "name3",
+							URL:  "https://site3",
+						},
+					))
+					// /iterations.php, /login.php, /login_check.php, /getaccts.php
+					Expect(server.ReceivedRequests()).To(HaveLen(4))
+				})
+			})
+
+			Context("when successfully operating on a single account", func() {
+				var rspMsg string
+				JustBeforeEach(func() {
+					server.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest(http.MethodPost, "/show_website.php"),
+							contentTypeVerifier,
+							ghttp.VerifyForm(form),
+							ghttp.RespondWith(http.StatusOK, fmt.Sprintf(
+								"<xmlresponse><result aid=\"%s\" msg=\"%s\"></result></xmlresponse>",
+								acct.ID, rspMsg),
+							),
+						),
+					)
+				})
+
+				AfterEach(func() {
+					// /iterations.php, /login.php, /login_check.php, /show_website.php
+					Expect(server.ReceivedRequests()).To(HaveLen(4))
+				})
+
+				Context("when upserting", func() {
+					BeforeEach(func() {
+						form = url.Values{}
+						form.Set("method", "cli")
+						form.Set("extjs", "1")
+						form.Set("token", token)
+						form.Set("url", hex.EncodeToString([]byte(acct.URL)))
+						form.Set("pwprotect", "off")
+					})
+
+					Describe("Add()", func() {
+						BeforeEach(func() {
+							rspMsg = "accountadded"
+							form.Set("aid", "0")
+						})
+						It("requests /show_website.php with aid=0", func() {
+							addedID, err := client.Add(
+								acct.Name,
+								acct.Username,
+								acct.Password,
+								acct.URL,
+								acct.Group,
+								acct.Notes,
+							)
+							Expect(err).NotTo(HaveOccurred())
+							Expect(addedID).To(Equal(acct.ID))
+						})
+					})
+					Describe("Update()", func() {
+						BeforeEach(func() {
+							rspMsg = "accountupdated"
+							form.Set("aid", acct.ID)
+						})
+						It("requests /show_website.php with correct aid", func() {
+							Expect(client.Update(acct)).To(Succeed())
+						})
+					})
+				})
+				Describe("Delete()", func() {
+					BeforeEach(func() {
+						rspMsg = "accountdeleted"
+						form = url.Values{}
+						form.Set("delete", "1")
+						form.Set("extjs", "1")
+						form.Set("token", token)
+						form.Set("aid", acct.ID)
+					})
+					It("requests /show_website.php with correct aid and delete=1", func() {
+						Expect(client.Delete(acct.ID)).To(Succeed())
+					})
+				})
+			})
+
+			Context("when account does not exist", func() {
+				BeforeEach(func() {
+					header := http.Header{}
+					header.Set("Content-Length", "0")
+					server.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest(http.MethodPost, "/show_website.php"),
+							ghttp.RespondWith(http.StatusOK, nil, header),
+						),
+					)
+				})
+				AfterEach(func() {
+					// /iterations.php, /login.php, /login_check.php, /show_website.php
+					Expect(server.ReceivedRequests()).To(HaveLen(4))
+				})
+				Describe("Update()", func() {
+					It("returns AccountNotFoundError", func() {
+						Expect(client.Update(acct)).To(MatchError(&AccountNotFoundError{acct.ID}))
+					})
+				})
+				Describe("Delete()", func() {
+					It("returns AccountNotFoundError", func() {
+						id := "notExisting"
+						Expect(client.Delete(id)).To(MatchError(&AccountNotFoundError{id}))
+					})
+				})
+			})
+
+			Context("when Client Logout()", func() {
+				BeforeEach(func() {
+					form = url.Values{}
+					form.Set("method", "cli")
+					form.Set("noredirect", "1")
+
+					server.AppendHandlers(
+						ghttp.CombineHandlers(
+							ghttp.VerifyRequest(http.MethodPost, "/logout.php"),
+							contentTypeVerifier,
+							ghttp.VerifyForm(form),
+							ghttp.RespondWith(http.StatusOK, ""),
+						),
+					)
+					Expect(client.Logout()).To(Succeed())
+				})
+				AfterEach(func() {
+					// /iterations.php, /login.php, /login_check.php, /logout.php
+					Expect(server.ReceivedRequests()).To(HaveLen(4))
+				})
+				AssertUnauthenticatedBehavior()
+			})
+		})
+
+		Context("when session is dead (e.g. when session cookie expired)", func() {
+			rsp := `<?xml version="1.0" encoding="UTF-8"?>
+	<response>
+	<error silent="1" from="session is not live"/>
+	</response>`
 			BeforeEach(func() {
 				server.AppendHandlers(
 					ghttp.CombineHandlers(
-						ghttp.VerifyRequest(http.MethodGet, "/getaccts.php", "requestsrc=cli"),
+						ghttp.VerifyRequest(http.MethodPost, "/login_check.php"),
 						ghttp.RespondWith(http.StatusOK, rsp),
 					),
 				)
 			})
-			It("requests /getaccts.php", func() {
-				accts, err := client.Accounts()
-				Expect(err).NotTo(HaveOccurred())
-				Expect(accts).To(ConsistOf(
-					&Account{
-						ID:       "redacted1",
-						Name:     "name1",
-						Username: "user1",
-						Password: "pwd1",
-						URL:      "https://site1",
-						Group:    "folder1",
-						Notes:    "notes1",
-					},
-					&Account{
-						ID:    "redacted2",
-						Name:  "name2",
-						URL:   "http://sn",
-						Group: "folder1",
-						Notes: "some secure note",
-					},
-					&Account{
-						ID:   "redacted3",
-						Name: "name3",
-						URL:  "https://site3",
-					},
-				))
+			AfterEach(func() {
+				// /iterations.php, /login.php, /login_check.php
+				Expect(server.ReceivedRequests()).To(HaveLen(3))
 			})
-		})
-
-		Context("when successfully operating on a single account", func() {
-			var rspMsg string
-			JustBeforeEach(func() {
-				server.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest(http.MethodPost, "/show_website.php"),
-						contentTypeVerifier,
-						ghttp.VerifyForm(form),
-						ghttp.RespondWith(http.StatusOK, fmt.Sprintf(
-							"<xmlresponse><result aid=\"%s\" msg=\"%s\"></result></xmlresponse>",
-							acct.ID, rspMsg),
-						),
-					),
-				)
-			})
-
-			Context("when upserting", func() {
-				BeforeEach(func() {
-					form.Set("method", "cli")
-					form.Set("extjs", "1")
-					form.Set("token", token)
-					form.Set("url", hex.EncodeToString([]byte(acct.URL)))
-					form.Set("pwprotect", "off")
-				})
-
-				Describe("Add()", func() {
-					BeforeEach(func() {
-						rspMsg = "accountadded"
-						form.Set("aid", "0")
-					})
-					It("requests /show_website.php with aid=0", func() {
-						addedID, err := client.Add(
-							acct.Name,
-							acct.Username,
-							acct.Password,
-							acct.URL,
-							acct.Group,
-							acct.Notes,
-						)
-						Expect(err).NotTo(HaveOccurred())
-						Expect(addedID).To(Equal(acct.ID))
-					})
-				})
-				Describe("Update()", func() {
-					BeforeEach(func() {
-						rspMsg = "accountupdated"
-						form.Set("aid", acct.ID)
-					})
-					It("requests /show_website.php with correct aid", func() {
-						Expect(client.Update(acct)).To(Succeed())
-					})
-				})
-			})
-			Describe("Delete()", func() {
-				BeforeEach(func() {
-					rspMsg = "accountdeleted"
-					form.Set("delete", "1")
-					form.Set("extjs", "1")
-					form.Set("token", token)
-					form.Set("aid", acct.ID)
-				})
-				It("requests /show_website.php with correct aid and delete=1", func() {
-					Expect(client.Delete(acct.ID)).To(Succeed())
-				})
-			})
-		})
-
-		Context("when account does not exist", func() {
-			BeforeEach(func() {
-				header := http.Header{}
-				header.Set("Content-Length", "0")
-				server.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest(http.MethodPost, "/show_website.php"),
-						ghttp.RespondWith(http.StatusOK, nil, header),
-					),
-				)
-			})
-			Describe("Update()", func() {
-				It("returns an *AccountNotFound error", func() {
-					Expect(client.Update(acct)).To(MatchError(&AccountNotFoundError{acct.ID}))
-				})
-			})
-			Describe("Delete()", func() {
-				It("returns an *AccountNotFound error", func() {
-					id := "notExisting"
-					Expect(client.Delete(id)).To(MatchError(&AccountNotFoundError{id}))
-				})
-			})
+			AssertUnauthenticatedBehavior()
 		})
 	})
 })

@@ -33,6 +33,4 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	Expect(client.Logout()).To(Succeed())
-	_, err := client.Accounts()
-	Expect(err).To(MatchError("GET https://lastpass.com/getaccts.php: 403 Forbidden"))
 })

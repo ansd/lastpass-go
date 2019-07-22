@@ -9,3 +9,10 @@ type AccountNotFoundError struct {
 func (e *AccountNotFoundError) Error() string {
 	return "could not find LastPass account with ID=" + e.ID
 }
+
+// UnauthenticatedError indicates that the Client is not logged in.
+type UnauthenticatedError struct{}
+
+func (e *UnauthenticatedError) Error() string {
+	return "client is not logged in"
+}

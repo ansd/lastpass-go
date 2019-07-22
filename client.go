@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	netURL "net/url"
 )
 
@@ -34,8 +35,16 @@ func (c *Client) Login(username, masterPassword string) error {
 	return c.initSession(username, masterPassword)
 }
 
-// Logout invalidates the session token of the Client.
+// Logout invalidates the session cookie.
 func (c *Client) Logout() error {
+	loggedIn, err := c.loggedIn()
+	if err != nil {
+		return err
+	}
+	if !loggedIn {
+		return nil
+	}
+
 	res, err := c.httpClient.PostForm(
 		c.baseURL()+"/logout.php",
 		netURL.Values{
@@ -51,10 +60,12 @@ func (c *Client) Logout() error {
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to logout (HTTP status %s)", res.Status)
 	}
+	c.session = nil
 	return nil
 }
 
 // Add adds a new LastPass Account returning the newly created accountID.
+// If Client is not logged in, an *UnauthenticatedError is returned.
 func (c *Client) Add(accountName, userName, password, url, group, notes string) (accountID string, err error) {
 	acct := &Account{"0", accountName, userName, password, url, group, notes}
 	result, err := c.upsert(acct)
@@ -68,6 +79,7 @@ func (c *Client) Add(accountName, userName, password, url, group, notes string) 
 }
 
 // Update updates the account with the given account.ID.
+// If Client is not logged in, an *UnauthenticatedError is returned.
 // If account.ID does not exist in LastPass, an *AccountNotFoundError is returned.
 func (c *Client) Update(account *Account) error {
 	result, err := c.upsert(account)
@@ -81,8 +93,17 @@ func (c *Client) Update(account *Account) error {
 }
 
 // Delete deletes the LastPass Account with the given accountID.
+// If Client is not logged in, an *UnauthenticatedError is returned.
 // If accountID does not exist in LastPass, an *AccountNotFoundError is returned.
 func (c *Client) Delete(accountID string) error {
+	loggedIn, err := c.loggedIn()
+	if err != nil {
+		return err
+	}
+	if !loggedIn {
+		return &UnauthenticatedError{}
+	}
+
 	res, err := c.httpClient.PostForm(
 		c.baseURL()+"/show_website.php",
 		netURL.Values{
@@ -122,6 +143,14 @@ type result struct {
 func (c *Client) upsert(acct *Account) (result, error) {
 	var response struct {
 		Result result `xml:"result"`
+	}
+
+	loggedIn, err := c.loggedIn()
+	if err != nil {
+		return response.Result, err
+	}
+	if !loggedIn {
+		return response.Result, &UnauthenticatedError{}
 	}
 
 	nameEncrypted, err := encryptAES256Cbc(acct.Name, c.encryptionKey)
@@ -178,4 +207,32 @@ func (c *Client) baseURL() string {
 		return "https://lastpass.com"
 	}
 	return c.BaseURL
+}
+
+func (c *Client) loggedIn() (bool, error) {
+	if c.session == nil || c.session.token == "" {
+		return false, nil
+	}
+
+	res, err := c.httpClient.PostForm(
+		c.baseURL()+"/login_check.php",
+		url.Values{
+			"method": []string{"cli"},
+		},
+	)
+	if err != nil {
+		return false, err
+	}
+	type ok struct {
+		AcctsVersion string `xml:"accts_version,attr"`
+	}
+	var response struct {
+		Ok ok `xml:"ok"`
+	}
+	defer res.Body.Close()
+	if err = xml.NewDecoder(res.Body).Decode(&response); err != nil {
+		return false, err
+	}
+	loggedIn := response.Ok.AcctsVersion != ""
+	return loggedIn, nil
 }

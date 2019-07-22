@@ -18,4 +18,13 @@ var _ = Describe("Errors", func() {
 			})
 		})
 	})
+	Describe("UnauthenticatedError", func() {
+		var err error = &UnauthenticatedError{}
+
+		Describe("Error()", func() {
+			It("provides error message", func() {
+				Expect(err).To(MatchError("client is not logged in"))
+			})
+		})
+	})
 })
