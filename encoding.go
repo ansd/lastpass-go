@@ -15,9 +15,9 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-func (c *Client) loginHash(username, password string) string {
+func (c *Client) loginHash(password string) string {
 	iterations := c.session.passwdIterations
-	key := encryptionKey(username, password, iterations)
+	key := encryptionKey(c.user, password, iterations)
 	c.encryptionKey = key
 
 	if iterations == 1 {

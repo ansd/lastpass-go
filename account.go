@@ -21,17 +21,17 @@ type Account struct {
 }
 
 // Accounts lists all LastPass accounts.
-// If Client is not logged in, an *UnauthenticatedError is returned.
+// If Client is not logged in, an *AuthenticationError is returned.
 func (c *Client) Accounts() ([]*Account, error) {
 	loggedIn, err := c.loggedIn()
 	if err != nil {
 		return nil, err
 	}
 	if !loggedIn {
-		return nil, &UnauthenticatedError{}
+		return nil, &AuthenticationError{"client not logged in"}
 	}
 
-	endpoint := c.baseURL() + "/getaccts.php"
+	endpoint := c.baseURL + EndointGetAccts
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, err

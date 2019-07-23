@@ -12,27 +12,77 @@ import (
 	netURL "net/url"
 )
 
+const (
+	EndpointLogin       = "/login.php"
+	EndpointLoginCheck  = "/login_check.php"
+	EndpointIterations  = "/iterations.php"
+	EndointGetAccts     = "/getaccts.php"
+	EndpointShowWebsite = "/show_website.php"
+	EndointLogout       = "/logout.php"
+)
+
 // Client represents a LastPass client.
 // A Client can be logged in to a single account at a given time.
 type Client struct {
-	// base URL of LastPass servers; defaults to "https://lastpass.com"
-	BaseURL       string
+	user          string
 	httpClient    *http.Client
 	encryptionKey []byte
 	session       *session
+	baseURL       string
+	otp           string
 }
 
-// Login authenticates with the LastPass servers.
-// Currently, Login does not yet support two-factor authentication.
-func (c *Client) Login(username, masterPassword string) error {
+// ClientOption is the type of constructor options for NewClient(...).
+type ClientOption func(c *Client)
+
+// NewClient authenticates with the LastPass servers.
+//
+// The following authentication schemes are supported:
+// single-factor authentication via master password,
+// two-factor authentication via out-of-band mechanism
+// (e.g. LastPass Authenticator Push Notification, Duo Security Push Notification),
+// and two-factor authentication via one-time password
+// (e.g. one-time verification code of LastPass Authenticator, Google Authenticator,
+// Microsoft Authenticator, YubiKey, Transakt, Duo Security, or Sesame)
+//
+// If authentication fails, an *AuthenticationError is returned.
+func NewClient(username, masterPassword string, opts ...ClientOption) (*Client, error) {
+	if username == "" {
+		return nil, &AuthenticationError{"username must not be empty"}
+	}
+	if masterPassword == "" {
+		return nil, &AuthenticationError{"masterPassword must not be empty"}
+	}
+	c := &Client{
+		user:    username,
+		baseURL: "https://lastpass.com/",
+	}
 	cookieJar, err := cookiejar.New(nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	c.httpClient = &http.Client{
 		Jar: cookieJar,
 	}
-	return c.initSession(username, masterPassword)
+	for _, opt := range opts {
+		opt(c)
+	}
+	if err = c.initSession(masterPassword); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func WithOneTimePassword(oneTimePassword string) ClientOption {
+	return func(c *Client) {
+		c.otp = oneTimePassword
+	}
+}
+
+func WithBaseURL(baseURL string) ClientOption {
+	return func(c *Client) {
+		c.baseURL = baseURL
+	}
 }
 
 // Logout invalidates the session cookie.
@@ -46,7 +96,7 @@ func (c *Client) Logout() error {
 	}
 
 	res, err := c.httpClient.PostForm(
-		c.baseURL()+"/logout.php",
+		c.baseURL+EndointLogout,
 		netURL.Values{
 			"method":     []string{"cli"},
 			"noredirect": []string{"1"},
@@ -64,23 +114,29 @@ func (c *Client) Logout() error {
 	return nil
 }
 
-// Add adds a new LastPass Account returning the newly created accountID.
-// If Client is not logged in, an *UnauthenticatedError is returned.
-func (c *Client) Add(accountName, userName, password, url, group, notes string) (accountID string, err error) {
-	acct := &Account{"0", accountName, userName, password, url, group, notes}
-	result, err := c.upsert(acct)
+// Add adds the account to LastPass.
+// Since LastPass generates a new account ID, account.ID is ignored.
+// When this method returns (without an error), account.ID is set to the newly generated account ID.
+// If Client is not logged in, an *AuthenticationError is returned.
+func (c *Client) Add(account *Account) error {
+	if account.Name == "" {
+		return errors.New("account.Name must not be empty")
+	}
+	account.ID = "0"
+	result, err := c.upsert(account)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if result.Msg != "accountadded" {
-		return "", errors.New("failed to add account")
+		return errors.New("failed to add account")
 	}
-	return result.AccountID, nil
+	account.ID = result.AccountID
+	return nil
 }
 
 // Update updates the account with the given account.ID.
-// If Client is not logged in, an *UnauthenticatedError is returned.
 // If account.ID does not exist in LastPass, an *AccountNotFoundError is returned.
+// If Client is not logged in, an *AuthenticationError is returned.
 func (c *Client) Update(account *Account) error {
 	result, err := c.upsert(account)
 	if err != nil {
@@ -93,19 +149,19 @@ func (c *Client) Update(account *Account) error {
 }
 
 // Delete deletes the LastPass Account with the given accountID.
-// If Client is not logged in, an *UnauthenticatedError is returned.
 // If accountID does not exist in LastPass, an *AccountNotFoundError is returned.
+// If Client is not logged in, an *AuthenticationError is returned.
 func (c *Client) Delete(accountID string) error {
 	loggedIn, err := c.loggedIn()
 	if err != nil {
 		return err
 	}
 	if !loggedIn {
-		return &UnauthenticatedError{}
+		return &AuthenticationError{"client not logged in"}
 	}
 
 	res, err := c.httpClient.PostForm(
-		c.baseURL()+"/show_website.php",
+		c.baseURL+EndpointShowWebsite,
 		netURL.Values{
 			"extjs":  []string{"1"},
 			"delete": []string{"1"},
@@ -150,7 +206,7 @@ func (c *Client) upsert(acct *Account) (result, error) {
 		return response.Result, err
 	}
 	if !loggedIn {
-		return response.Result, &UnauthenticatedError{}
+		return response.Result, &AuthenticationError{"client not logged in"}
 	}
 
 	nameEncrypted, err := encryptAES256Cbc(acct.Name, c.encryptionKey)
@@ -175,7 +231,7 @@ func (c *Client) upsert(acct *Account) (result, error) {
 	}
 
 	res, err := c.httpClient.PostForm(
-		c.baseURL()+"/show_website.php",
+		c.baseURL+EndpointShowWebsite,
 		netURL.Values{
 			"extjs":     []string{"1"},
 			"token":     []string{c.session.token},
@@ -202,20 +258,13 @@ func (c *Client) upsert(acct *Account) (result, error) {
 	return response.Result, err
 }
 
-func (c *Client) baseURL() string {
-	if c.BaseURL == "" {
-		return "https://lastpass.com"
-	}
-	return c.BaseURL
-}
-
 func (c *Client) loggedIn() (bool, error) {
 	if c.session == nil || c.session.token == "" {
 		return false, nil
 	}
 
 	res, err := c.httpClient.PostForm(
-		c.baseURL()+"/login_check.php",
+		c.baseURL+EndpointLoginCheck,
 		url.Values{
 			"method": []string{"cli"},
 		},

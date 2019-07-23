@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"strings"
@@ -10,7 +11,7 @@ import (
 
 func main() {
 
-	// Read LastPass username and master password from file
+	// read LastPass username and master password from file
 	b, err := ioutil.ReadFile("credentials.txt")
 	if err != nil {
 		log.Fatalln(err)
@@ -19,18 +20,25 @@ func main() {
 	username := lines[0]
 	masterPassword := lines[1]
 
-	// Create the default Client
-	client := &lastpass.Client{}
-
-	// Login()
-	if err = client.Login(username, masterPassword); err != nil {
+	// NewClient() authenticates with LastPass servers
+	// check the examples at https://godoc.org/github.com/ansd/lastpass-go#NewClient
+	// for two-factor authentication
+	client, err := lastpass.NewClient(username, masterPassword)
+	if err != nil {
 		log.Fatalln(err)
 	}
 
+	account := &lastpass.Account{
+		Name:     "my site",
+		Username: "my user",
+		Password: "my pwd",
+		URL:      "https://myURL",
+		Group:    "my group",
+		Notes:    "my notes",
+	}
+
 	// Add() account
-	addedID, err := client.Add("my site", "my user",
-		"my pwd", "https://myURL", "my group", "my notes")
-	if err != nil {
+	if err = client.Add(account); err != nil {
 		log.Fatalln(err)
 	}
 
@@ -40,23 +48,20 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	var addedAccount *lastpass.Account
-	for _, acct := range accounts {
-		if acct.ID == addedID {
-			addedAccount = acct
-			break
-		}
+	// print all Accounts
+	for _, a := range accounts {
+		fmt.Printf("%+v\n", a)
 	}
 
 	// Update() account
-	addedAccount.Username = "updated user"
-	addedAccount.Password = "updated password"
-	if err = client.Update(addedAccount); err != nil {
+	account.Username = "updated user"
+	account.Password = "updated password"
+	if err = client.Update(account); err != nil {
 		log.Fatalln(err)
 	}
 
 	// Delete() account
-	if err = client.Delete(addedID); err != nil {
+	if err = client.Delete(account.ID); err != nil {
 		log.Fatalln(err)
 	}
 

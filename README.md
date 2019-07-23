@@ -1,13 +1,12 @@
 # Go client for LastPass
 
-This is an unofficial LastPass client.
-
-This is work in progress. Therefore, the API is likely to change.
-
-This client is based on and extends https://github.com/mattn/lastpass-go.
+This repository is a clone of https://github.com/mattn/lastpass-go.
 
 ## Features
-- login with username and master password (no two-factor authentication yet)
+- login
+	- user name and master password
+	- two-factor authentication with out-of-band mechanism such as push notification to LastPass Authenticator or Duo Security
+	- two-factor authentication with one-time password from LastPass Authenticator, Google Authenticator, Microsoft Authenticator, YubiKey, Duo Security, Sesame, etc.
 - create account
 - read accounts
 - update account
@@ -15,7 +14,7 @@ This client is based on and extends https://github.com/mattn/lastpass-go.
 - logout
 
 ## Documentation
-[API Reference](http://godoc.org/github.com/ansd/lastpass-go)
+[GoDoc](http://godoc.org/github.com/ansd/lastpass-go)
 
 ## Installation
 
@@ -33,36 +32,38 @@ import "github.com/ansd/lastpass-go"
 
 ## Usage
 
-```go
-// create default Client
-client := &lastpass.Client{}
+Below, error handling is excluded for brevity.
+See [example](https://github.com/ansd/lastpass-go/tree/master/example) directory for a complete example.
 
-// Login()
-client.Login(username, masterPassword)
+```go
+// authenticate with LastPass servers
+client, _ := lastpass.NewClient("user name", "master password")
+
+// two-factor authentication with one-time password as second factor:
+// client, _ := lastpass.NewClient("user name", "master password", lastpass.WithOneTimePassword("123456"))
+
+account := &lastpass.Account{
+	Name:     "my site",
+	Username: "my user",
+	Password: "my pwd",
+	URL:      "https://myURL",
+	Group:    "my group",
+	Notes:    "my notes",
+}
 
 // Add() account
-addedID, _ := client.Add("my site", "my user", "my pwd", "https://myURL", "my group", "my notes")
+client.Add(account)
 
 // read all Accounts()
 accounts, _ := client.Accounts()
 
-var addedAccount *lastpass.Account
-for _, acct := range accounts {
-	if acct.ID == addedID {
-		addedAccount = acct
-		break
-	}
-}
-
 // Update() account
-addedAccount.Password = "updated password"
-client.Update(addedAccount)
+account.Password = "updated password"
+client.Update(account)
 
 // Delete() account
-client.Delete(addedID)
+client.Delete(account.ID)
 
 // Logout()
 client.Logout()
 ```
-
-See [example](https://github.com/ansd/lastpass-go/tree/master/example) directory for a complete example.

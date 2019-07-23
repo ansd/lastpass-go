@@ -20,16 +20,7 @@ var _ = Describe("Integration", func() {
 				Group:    "test group",
 				Notes:    "test notes",
 			}
-			addedID, err := client.Add(
-				newAcct.Name,
-				newAcct.Username,
-				newAcct.Password,
-				newAcct.URL,
-				newAcct.Group,
-				newAcct.Notes,
-			)
-			Expect(err).NotTo(HaveOccurred())
-			newAcct.ID = addedID
+			Expect(client.Add(newAcct)).To(Succeed())
 		})
 
 		AfterEach(func() {
