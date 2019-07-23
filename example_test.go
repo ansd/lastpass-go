@@ -14,11 +14,11 @@ func ExampleNewClient_passwordBasedAuthentication() {
 }
 
 // Login with two-factor authentication:
-// 1st factor master passord,
-// 2nd factor out-of-band mechanism (e.g. LastPass Authenticator Push Notification or
+// 1st factor is master passord,
+// 2nd factor is out-of-band mechanism (e.g. LastPass Authenticator Push Notification or
 // Duo Security Push Notification).
 //
-// The code is the same as the login without two-factor authentication.
+// Below code is the same as the login without two-factor authentication.
 // Once the NewClient function got invoked, the user has around 90 seconds to accept
 // the out-of-band mechanism (e.g. by selecting "Approve" in the LastPass Authenticator or
 // Duo Security app.)
@@ -33,8 +33,8 @@ func ExampleNewClient_outOfBandAuthentication() {
 }
 
 // Login with two-factor authentication:
-// 1st factor master passord,
-// 2nd factor one-time password (e.g. one-time verification code of LastPass Authenticator,
+// 1st factor is master passord,
+// 2nd factor is one-time password (e.g. one-time verification code of LastPass Authenticator,
 // Google Authenticator, Microsoft Authenticator, YubiKey, Transakt, Duo Security, or Sesame).
 //
 // If an invalid user name, master password, or one-time password is supplied,

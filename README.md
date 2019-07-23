@@ -3,7 +3,7 @@
 This repository is a clone of https://github.com/mattn/lastpass-go.
 
 ## Features
-- login
+- login via
 	- user name and master password
 	- two-factor authentication with out-of-band mechanism such as push notification to LastPass Authenticator or Duo Security
 	- two-factor authentication with one-time password from LastPass Authenticator, Google Authenticator, Microsoft Authenticator, YubiKey, Duo Security, Sesame, etc.

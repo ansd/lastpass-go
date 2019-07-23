@@ -12,6 +12,7 @@ import (
 	netURL "net/url"
 )
 
+// LastPass API endpoints used by this client.
 const (
 	EndpointLogin       = "/login.php"
 	EndpointLoginCheck  = "/login_check.php"
@@ -73,12 +74,17 @@ func NewClient(username, masterPassword string, opts ...ClientOption) (*Client, 
 	return c, nil
 }
 
+// WithOneTimePassword enables two-factor authentication with a one-time password
+// as the second factor. For an example how to use this function see
+// https://godoc.org/github.com/ansd/lastpass-go#example-NewClient--OneTimePasswordAuthentication.
 func WithOneTimePassword(oneTimePassword string) ClientOption {
 	return func(c *Client) {
 		c.otp = oneTimePassword
 	}
 }
 
+// WithBaseURL overwrites the Client's default base URL https://lastpass.com/.
+// This function is used for unit testing.
 func WithBaseURL(baseURL string) ClientOption {
 	return func(c *Client) {
 		c.baseURL = baseURL

@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+// MaxLoginRetries determines the maximum number of login retries
+// if the login fails with cause "outofbandrequired".
+// This increases the user's time to approve the out-of-band (2nd) factor
+// (e.g. approving a push notification sent to their mobile phone).
 const MaxLoginRetries = 7
 
 type session struct {
