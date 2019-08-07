@@ -56,7 +56,7 @@ func (c *Client) Accounts() ([]*Account, error) {
 		ID                string `xml:"id,attr"`
 		NameEncrypted     string `xml:"name,attr"`
 		UsernameEncrypted string `xml:"username,attr"`
-		URLBase64         string `xml:"url,attr"`
+		URLHexEncoded     string `xml:"url,attr"`
 		GroupEncrypted    string `xml:"group,attr"`
 		NotesEncrypted    string `xml:"extra,attr"`
 		Login             login  `xml:"login"`
@@ -80,7 +80,17 @@ func (c *Client) Accounts() ([]*Account, error) {
 
 	accts := make([]*Account, len(response.Accounts.Accounts))
 
-	for i, acct := range response.Accounts.Accounts {
+	n := 0
+	for _, acct := range response.Accounts.Accounts {
+		url, err := hex.DecodeString(acct.URLHexEncoded)
+		if err != nil {
+			return nil, err
+		}
+		if string(url) == "http://group" {
+			// ignore "group" accounts since they are made up by LastPass and have no credentials
+			continue
+		}
+
 		name, err := decryptAES256Cbc(acct.NameEncrypted, c.encryptionKey)
 		if err != nil {
 			return nil, err
@@ -90,10 +100,6 @@ func (c *Client) Accounts() ([]*Account, error) {
 			return nil, err
 		}
 		password, err := decryptAES256Cbc(acct.Login.PasswordEncrypted, c.encryptionKey)
-		if err != nil {
-			return nil, err
-		}
-		url, err := hex.DecodeString(acct.URLBase64)
 		if err != nil {
 			return nil, err
 		}
@@ -115,8 +121,9 @@ func (c *Client) Accounts() ([]*Account, error) {
 			Group:    group,
 			Notes:    notes,
 		}
-		accts[i] = acctDecrypted
+		accts[n] = acctDecrypted
+		n++
 	}
 
-	return accts, nil
+	return accts[:n], nil
 }

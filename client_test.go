@@ -208,7 +208,19 @@ var _ = Describe("Client", func() {
 				})
 
 				Describe("Accounts()", func() {
-					const rsp = `<?xml version="1.0" encoding="UTF-8"?>
+					var rsp string
+					JustBeforeEach(func() {
+						server.AppendHandlers(
+							ghttp.CombineHandlers(
+								ghttp.VerifyRequest(http.MethodGet, EndointGetAccts, "requestsrc=cli"),
+								ghttp.RespondWith(http.StatusOK, rsp),
+							),
+						)
+					})
+
+					Context("when no group accounts are returned", func() {
+						BeforeEach(func() {
+							rsp = `<?xml version="1.0" encoding="UTF-8"?>
 	<response>
 		<accounts accts_version="7" updated_enc="1" encrypted_username="oPESriXvEY2ueIIThKKVjAiq6XfbtiQCskxw9egZYJQ=" cbc="1">
 				<account name="!Sd7ykqSvqcfaJhAzuJ2qkA==|Qu7rG7ItX2NQpXGXCCAoCw==" urid="0" id="redacted1" url="68747470733a2f2f7369746531" m="" http="" fav="0" favico="0" autologin="0" basic_auth="0" group="!BqCZIGQw3tcL8jfEulTKSw==|B5hQA6I0/diUEVAD8hzwXA==" fiid="redacted" genpw="0" extra="!NQgdpU3aNJLSEh2FUIaURg==|GXMdUvoG+BhQ1U/jKSp6kg==" isbookmark="0" never_autofill="0" last_touch="0" last_modified="1563546859" sn="0" realm="" sharedfromaid="" pwprotect="0" launch_count="0" username="!s0V0uZIaoFAoEy+1EWsyrw==|4uKEWau+7UuI5EqkkWhaag==" groupid="0">
@@ -222,42 +234,57 @@ var _ = Describe("Client", func() {
 				</account>
 		</accounts>
 	</response>`
-					BeforeEach(func() {
-						server.AppendHandlers(
-							ghttp.CombineHandlers(
-								ghttp.VerifyRequest(http.MethodGet, EndointGetAccts, "requestsrc=cli"),
-								ghttp.RespondWith(http.StatusOK, rsp),
-							),
-						)
+						})
+						It("requests /getaccts.php", func() {
+							accts, err := client.Accounts()
+							Expect(err).NotTo(HaveOccurred())
+							Expect(accts).To(ConsistOf(
+								&Account{
+									ID:       "redacted1",
+									Name:     "name1",
+									Username: "user1",
+									Password: "pwd1",
+									URL:      "https://site1",
+									Group:    "folder1",
+									Notes:    "notes1",
+								},
+								&Account{
+									ID:    "redacted2",
+									Name:  "name2",
+									URL:   "http://sn",
+									Group: "folder1",
+									Notes: "some secure note",
+								},
+								&Account{
+									ID:   "redacted3",
+									Name: "name3",
+									URL:  "https://site3",
+								},
+							))
+							// /iterations.php, /login.php, /login_check.php, /getaccts.php
+							Expect(server.ReceivedRequests()).To(HaveLen(4))
+						})
 					})
-					It("requests /getaccts.php", func() {
-						accts, err := client.Accounts()
-						Expect(err).NotTo(HaveOccurred())
-						Expect(accts).To(ConsistOf(
-							&Account{
-								ID:       "redacted1",
-								Name:     "name1",
-								Username: "user1",
-								Password: "pwd1",
-								URL:      "https://site1",
-								Group:    "folder1",
-								Notes:    "notes1",
-							},
-							&Account{
-								ID:    "redacted2",
-								Name:  "name2",
-								URL:   "http://sn",
-								Group: "folder1",
-								Notes: "some secure note",
-							},
-							&Account{
-								ID:   "redacted3",
-								Name: "name3",
-								URL:  "https://site3",
-							},
-						))
-						// /iterations.php, /login.php, /login_check.php, /getaccts.php
-						Expect(server.ReceivedRequests()).To(HaveLen(4))
+					Context("when group accounts are returned", func() {
+						BeforeEach(func() {
+							urlHexEncoded := hex.EncodeToString([]byte("http://group"))
+							rsp = fmt.Sprintf("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"+
+								"	<response>"+
+								"<accounts accts_version=\"7\" updated_enc=\"1\" encrypted_username=\"oPESriXvEY2ueIIThKKVjAiq6XfbtiQCskxw9egZYJQ=\" cbc=\"1\">"+
+								"<account name=\"\" urid=\"0\" id=\"redacted\" url=\"%s\" m=\"\" http=\"\" fav=\"0\" favico=\"0\" autologin=\"0\" basic_auth=\"0\" group=\"!jlQ1RkvgkqLhxMdUIw7B9Q==|XBCzTAjhDVW3JCs14Dz2nQ==\" fiid=\"redacted\" genpw=\"0\" extra=\"\" isbookmark=\"0\" never_autofill=\"0\" last_touch=\"0\" last_modified=\"1565164396\" sn=\"0\" realm=\"\" sharedfromaid=\"\" pwprotect=\"0\" launch_count=\"0\" username=\"\" groupid=\"1\">"+
+								"<login urid=\"0\" url=\"%s\" submit_id=\"\" captcha_id=\"\" custom_js=\"\" u=\"\" p=\"\" o=\"\" method=\"\"></login>"+
+								"</account>"+
+								"</accounts>"+
+								"</response>",
+								urlHexEncoded, urlHexEncoded)
+						})
+						It("filters out group accounts", func() {
+							accts, err := client.Accounts()
+							Expect(err).NotTo(HaveOccurred())
+							Expect(accts).To(BeEmpty())
+							// /iterations.php, /login.php, /login_check.php, /getaccts.php
+							Expect(server.ReceivedRequests()).To(HaveLen(4))
+						})
 					})
 				})
 
