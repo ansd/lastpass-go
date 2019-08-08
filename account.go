@@ -1,6 +1,7 @@
 package lastpass
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
@@ -22,8 +23,8 @@ type Account struct {
 
 // Accounts lists all LastPass accounts.
 // If Client is not logged in, an *AuthenticationError is returned.
-func (c *Client) Accounts() ([]*Account, error) {
-	loggedIn, err := c.loggedIn()
+func (c *Client) Accounts(ctx context.Context) ([]*Account, error) {
+	loggedIn, err := c.loggedIn(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -36,11 +37,13 @@ func (c *Client) Accounts() ([]*Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	u.RawQuery = url.Values{
-		"requestsrc": []string{"cli"},
-	}.Encode()
-
-	res, err := c.httpClient.Get(u.String())
+	u.RawQuery = url.Values{"requestsrc": []string{"cli"}}.Encode()
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

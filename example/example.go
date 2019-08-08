@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -23,7 +24,7 @@ func main() {
 	// NewClient() authenticates with LastPass servers
 	// check the examples at https://godoc.org/github.com/ansd/lastpass-go#NewClient
 	// for two-factor authentication
-	client, err := lastpass.NewClient(username, masterPassword)
+	client, err := lastpass.NewClient(context.Background(), username, masterPassword)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -38,12 +39,12 @@ func main() {
 	}
 
 	// Add() account
-	if err = client.Add(account); err != nil {
+	if err = client.Add(context.Background(), account); err != nil {
 		log.Fatalln(err)
 	}
 
 	// read all Accounts()
-	accounts, err := client.Accounts()
+	accounts, err := client.Accounts(context.Background())
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -56,17 +57,17 @@ func main() {
 	// Update() account
 	account.Username = "updated user"
 	account.Password = "updated password"
-	if err = client.Update(account); err != nil {
+	if err = client.Update(context.Background(), account); err != nil {
 		log.Fatalln(err)
 	}
 
 	// Delete() account
-	if err = client.Delete(account.ID); err != nil {
+	if err = client.Delete(context.Background(), account.ID); err != nil {
 		log.Fatalln(err)
 	}
 
 	// Logout()
-	if err = client.Logout(); err != nil {
+	if err = client.Logout(context.Background()); err != nil {
 		log.Fatalln(err)
 	}
 }

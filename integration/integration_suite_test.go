@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"context"
 	"io/ioutil"
 	"log"
 	"strings"
@@ -27,10 +28,10 @@ var _ = BeforeSuite(func() {
 	username := lines[0]
 	password := lines[1]
 
-	client, err = lastpass.NewClient(username, password)
+	client, err = lastpass.NewClient(context.Background(), username, password)
 	Expect(err).NotTo(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {
-	Expect(client.Logout()).To(Succeed())
+	Expect(client.Logout(context.Background())).To(Succeed())
 })

@@ -1,6 +1,7 @@
 package lastpass
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
@@ -20,23 +21,19 @@ type session struct {
 	token            string
 }
 
-func (c *Client) initSession(password string) error {
+func (c *Client) initSession(ctx context.Context, password string) error {
 	c.session = &session{}
-	if err := c.requestIterationCount(c.user); err != nil {
+	if err := c.requestIterationCount(ctx, c.user); err != nil {
 		return err
 	}
-	if err := c.login(password); err != nil {
+	if err := c.login(ctx, password); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Client) requestIterationCount(username string) error {
-	res, err := c.httpClient.PostForm(
-		c.baseURL+EndpointIterations,
-		url.Values{
-			"email": []string{username},
-		})
+func (c *Client) requestIterationCount(ctx context.Context, username string) error {
+	res, err := c.postForm(ctx, EndpointIterations, url.Values{"email": []string{username}})
 	if err != nil {
 		return err
 	}
@@ -56,7 +53,7 @@ func (c *Client) requestIterationCount(username string) error {
 	return nil
 }
 
-func (c *Client) login(password string) error {
+func (c *Client) login(ctx context.Context, password string) error {
 	form := url.Values{
 		"method":     []string{"cli"},
 		"xml":        []string{"1"},
@@ -69,7 +66,7 @@ func (c *Client) login(password string) error {
 	}
 
 	loginStartTime := time.Now()
-	httpRsp, err := c.httpClient.PostForm(c.baseURL+EndpointLogin, form)
+	httpRsp, err := c.postForm(ctx, EndpointLogin, form)
 	if err != nil {
 		return err
 	}
@@ -96,7 +93,7 @@ func (c *Client) login(password string) error {
 		form.Set("outofbandretryid", rsp.Error.RetryID)
 		for i := 0; i < MaxLoginRetries; i++ {
 			rsp = &response{}
-			httpRsp, err = c.httpClient.PostForm(c.baseURL+EndpointLogin, form)
+			httpRsp, err = c.postForm(ctx, EndpointLogin, form)
 			if err != nil {
 				return err
 			}

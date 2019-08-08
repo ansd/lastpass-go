@@ -1,13 +1,17 @@
 package lastpass_test
 
-import "github.com/ansd/lastpass-go"
+import (
+	"context"
+
+	"github.com/ansd/lastpass-go"
+)
 
 // Login with master password (without two-factor authentication).
 //
 // If an invalid user name or master password is supplied,
 // NewClient returns an error of type *AuthenticationError.
 func ExampleNewClient_passwordBasedAuthentication() {
-	_, err := lastpass.NewClient("user name", "master password")
+	_, err := lastpass.NewClient(context.Background(), "user name", "master password")
 	if err != nil {
 		// TODO handle error
 	}
@@ -26,7 +30,7 @@ func ExampleNewClient_passwordBasedAuthentication() {
 // If the user does not accept the out-of-band mechanism within the 90 seconds,
 // NewClient returns an error of type *AuthenticationError.
 func ExampleNewClient_outOfBandAuthentication() {
-	_, err := lastpass.NewClient("user name", "master password")
+	_, err := lastpass.NewClient(context.Background(), "user name", "master password")
 	if err != nil {
 		// TODO handle error
 	}
@@ -40,7 +44,8 @@ func ExampleNewClient_outOfBandAuthentication() {
 // If an invalid user name, master password, or one-time password is supplied,
 // NewClient returns an error of type *AuthenticationError.
 func ExampleNewClient_oneTimePasswordAuthentication() {
-	_, err := lastpass.NewClient("user name", "master password", lastpass.WithOneTimePassword("123456"))
+	_, err := lastpass.NewClient(context.Background(), "user name", "master password",
+		lastpass.WithOneTimePassword("123456"))
 	if err != nil {
 		// TODO handle error
 	}

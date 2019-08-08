@@ -37,10 +37,10 @@ See [example](https://github.com/ansd/lastpass-go/tree/master/example) directory
 
 ```go
 // authenticate with LastPass servers
-client, _ := lastpass.NewClient("user name", "master password")
+client, _ := lastpass.NewClient(context.Background(), "user name", "master password")
 
 // two-factor authentication with one-time password as second factor:
-// client, _ := lastpass.NewClient("user name", "master password", lastpass.WithOneTimePassword("123456"))
+// client, _ := lastpass.NewClient(context.Background(), "user name", "master password", lastpass.WithOneTimePassword("123456"))
 
 account := &lastpass.Account{
 	Name:     "my site",
@@ -52,18 +52,18 @@ account := &lastpass.Account{
 }
 
 // Add() account
-client.Add(account)
+client.Add(context.Background(), account)
 
 // read all Accounts()
-accounts, _ := client.Accounts()
+accounts, _ := client.Accounts(context.Background())
 
 // Update() account
 account.Password = "updated password"
-client.Update(account)
+client.Update(context.Background(), account)
 
 // Delete() account
-client.Delete(account.ID)
+client.Delete(context.Background(), account.ID)
 
 // Logout()
-client.Logout()
+client.Logout(context.Background())
 ```

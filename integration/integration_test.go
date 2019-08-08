@@ -1,6 +1,8 @@
 package integration_test
 
 import (
+	"context"
+
 	. "github.com/ansd/lastpass-go"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -20,11 +22,11 @@ var _ = Describe("Integration", func() {
 				Group:    "test group",
 				Notes:    "test notes",
 			}
-			Expect(client.Add(newAcct)).To(Succeed())
+			Expect(client.Add(context.Background(), newAcct)).To(Succeed())
 		})
 
 		AfterEach(func() {
-			Expect(client.Delete(newAcct.ID)).To(Succeed())
+			Expect(client.Delete(context.Background(), newAcct.ID)).To(Succeed())
 		})
 
 		Describe("Add()", func() {
@@ -37,7 +39,7 @@ var _ = Describe("Integration", func() {
 
 		Describe("Accounts()", func() {
 			It("lists accounts", func() {
-				accts, err := client.Accounts()
+				accts, err := client.Accounts(context.Background())
 				Expect(err).NotTo(HaveOccurred())
 				Expect(accts).To(ContainElement(newAcct))
 			})
@@ -47,7 +49,7 @@ var _ = Describe("Integration", func() {
 			It("updates the account", func() {
 				newAcct.Username = "updated user"
 				newAcct.Password = "updated pwd"
-				Expect(client.Update(newAcct)).To(Succeed())
+				Expect(client.Update(context.Background(), newAcct)).To(Succeed())
 
 				acct, err := accountForID(client, newAcct.ID)
 				Expect(err).NotTo(HaveOccurred())
@@ -57,7 +59,7 @@ var _ = Describe("Integration", func() {
 
 		Describe("Delete()", func() {
 			It("deletes the account", func() {
-				Expect(client.Delete(newAcct.ID)).To(Succeed())
+				Expect(client.Delete(context.Background(), newAcct.ID)).To(Succeed())
 
 				acct, err := accountForID(client, newAcct.ID)
 				Expect(err).NotTo(HaveOccurred())
@@ -71,20 +73,20 @@ var _ = Describe("Integration", func() {
 		Describe("Update()", func() {
 			It("returns AccountNotFoundError", func() {
 				acct := &Account{ID: id}
-				Expect(client.Update(acct)).To(MatchError(&AccountNotFoundError{ID: id}))
+				Expect(client.Update(context.Background(), acct)).To(MatchError(&AccountNotFoundError{ID: id}))
 			})
 		})
 
 		Describe("Delete()", func() {
 			It("returns AccountNotFoundError", func() {
-				Expect(client.Delete(id)).To(MatchError(&AccountNotFoundError{ID: id}))
+				Expect(client.Delete(context.Background(), id)).To(MatchError(&AccountNotFoundError{ID: id}))
 			})
 		})
 	})
 })
 
 func accountForID(c *Client, accountID string) (*Account, error) {
-	accts, err := c.Accounts()
+	accts, err := c.Accounts(context.Background())
 	if err != nil {
 		return nil, err
 	}

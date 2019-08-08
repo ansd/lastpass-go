@@ -2,6 +2,7 @@
 package lastpass
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/xml"
 	"errors"
@@ -10,6 +11,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	netURL "net/url"
+	"strings"
 )
 
 // LastPass API endpoints used by this client.
@@ -47,7 +49,7 @@ type ClientOption func(c *Client)
 // Microsoft Authenticator, YubiKey, Transakt, Duo Security, or Sesame)
 //
 // If authentication fails, an *AuthenticationError is returned.
-func NewClient(username, masterPassword string, opts ...ClientOption) (*Client, error) {
+func NewClient(ctx context.Context, username, masterPassword string, opts ...ClientOption) (*Client, error) {
 	if username == "" {
 		return nil, &AuthenticationError{"username must not be empty"}
 	}
@@ -56,7 +58,7 @@ func NewClient(username, masterPassword string, opts ...ClientOption) (*Client, 
 	}
 	c := &Client{
 		user:    username,
-		baseURL: "https://lastpass.com/",
+		baseURL: "https://lastpass.com",
 	}
 	cookieJar, err := cookiejar.New(nil)
 	if err != nil {
@@ -68,7 +70,7 @@ func NewClient(username, masterPassword string, opts ...ClientOption) (*Client, 
 	for _, opt := range opts {
 		opt(c)
 	}
-	if err = c.initSession(masterPassword); err != nil {
+	if err = c.initSession(ctx, masterPassword); err != nil {
 		return nil, err
 	}
 	return c, nil
@@ -92,8 +94,8 @@ func WithBaseURL(baseURL string) ClientOption {
 }
 
 // Logout invalidates the session cookie.
-func (c *Client) Logout() error {
-	loggedIn, err := c.loggedIn()
+func (c *Client) Logout(ctx context.Context) error {
+	loggedIn, err := c.loggedIn(ctx)
 	if err != nil {
 		return err
 	}
@@ -101,13 +103,11 @@ func (c *Client) Logout() error {
 		return nil
 	}
 
-	res, err := c.httpClient.PostForm(
-		c.baseURL+EndointLogout,
-		netURL.Values{
-			"method":     []string{"cli"},
-			"noredirect": []string{"1"},
-			"token":      []string{c.session.token},
-		})
+	res, err := c.postForm(ctx, EndointLogout, netURL.Values{
+		"method":     []string{"cli"},
+		"noredirect": []string{"1"},
+		"token":      []string{c.session.token},
+	})
 	if err != nil {
 		return err
 	}
@@ -124,12 +124,12 @@ func (c *Client) Logout() error {
 // Since LastPass generates a new account ID, account.ID is ignored.
 // When this method returns (without an error), account.ID is set to the newly generated account ID.
 // If Client is not logged in, an *AuthenticationError is returned.
-func (c *Client) Add(account *Account) error {
+func (c *Client) Add(ctx context.Context, account *Account) error {
 	if account.Name == "" {
 		return errors.New("account.Name must not be empty")
 	}
 	account.ID = "0"
-	result, err := c.upsert(account)
+	result, err := c.upsert(ctx, account)
 	if err != nil {
 		return err
 	}
@@ -143,8 +143,8 @@ func (c *Client) Add(account *Account) error {
 // Update updates the account with the given account.ID.
 // If account.ID does not exist in LastPass, an *AccountNotFoundError is returned.
 // If Client is not logged in, an *AuthenticationError is returned.
-func (c *Client) Update(account *Account) error {
-	result, err := c.upsert(account)
+func (c *Client) Update(ctx context.Context, account *Account) error {
+	result, err := c.upsert(ctx, account)
 	if err != nil {
 		return err
 	}
@@ -157,8 +157,8 @@ func (c *Client) Update(account *Account) error {
 // Delete deletes the LastPass Account with the given accountID.
 // If accountID does not exist in LastPass, an *AccountNotFoundError is returned.
 // If Client is not logged in, an *AuthenticationError is returned.
-func (c *Client) Delete(accountID string) error {
-	loggedIn, err := c.loggedIn()
+func (c *Client) Delete(ctx context.Context, accountID string) error {
+	loggedIn, err := c.loggedIn(ctx)
 	if err != nil {
 		return err
 	}
@@ -166,14 +166,12 @@ func (c *Client) Delete(accountID string) error {
 		return &AuthenticationError{"client not logged in"}
 	}
 
-	res, err := c.httpClient.PostForm(
-		c.baseURL+EndpointShowWebsite,
-		netURL.Values{
-			"extjs":  []string{"1"},
-			"delete": []string{"1"},
-			"aid":    []string{accountID},
-			"token":  []string{c.session.token},
-		})
+	res, err := c.postForm(ctx, EndpointShowWebsite, netURL.Values{
+		"extjs":  []string{"1"},
+		"delete": []string{"1"},
+		"aid":    []string{accountID},
+		"token":  []string{c.session.token},
+	})
 	if err != nil {
 		return err
 	}
@@ -202,12 +200,12 @@ type result struct {
 	AccountID string `xml:"aid,attr"`
 }
 
-func (c *Client) upsert(acct *Account) (result, error) {
+func (c *Client) upsert(ctx context.Context, acct *Account) (result, error) {
 	var response struct {
 		Result result `xml:"result"`
 	}
 
-	loggedIn, err := c.loggedIn()
+	loggedIn, err := c.loggedIn(ctx)
 	if err != nil {
 		return response.Result, err
 	}
@@ -236,21 +234,19 @@ func (c *Client) upsert(acct *Account) (result, error) {
 		return response.Result, err
 	}
 
-	res, err := c.httpClient.PostForm(
-		c.baseURL+EndpointShowWebsite,
-		netURL.Values{
-			"extjs":     []string{"1"},
-			"token":     []string{c.session.token},
-			"method":    []string{"cli"},
-			"pwprotect": []string{"off"},
-			"aid":       []string{acct.ID},
-			"url":       []string{hex.EncodeToString([]byte(acct.URL))},
-			"name":      []string{nameEncrypted},
-			"grouping":  []string{groupEncrypted},
-			"username":  []string{userNameEncrypted},
-			"password":  []string{passwordEncrypted},
-			"extra":     []string{notesEncrypted},
-		})
+	res, err := c.postForm(ctx, EndpointShowWebsite, netURL.Values{
+		"extjs":     []string{"1"},
+		"token":     []string{c.session.token},
+		"method":    []string{"cli"},
+		"pwprotect": []string{"off"},
+		"aid":       []string{acct.ID},
+		"url":       []string{hex.EncodeToString([]byte(acct.URL))},
+		"name":      []string{nameEncrypted},
+		"grouping":  []string{groupEncrypted},
+		"username":  []string{userNameEncrypted},
+		"password":  []string{passwordEncrypted},
+		"extra":     []string{notesEncrypted},
+	})
 	if err != nil {
 		return response.Result, err
 	}
@@ -264,17 +260,12 @@ func (c *Client) upsert(acct *Account) (result, error) {
 	return response.Result, err
 }
 
-func (c *Client) loggedIn() (bool, error) {
+func (c *Client) loggedIn(ctx context.Context) (bool, error) {
 	if c.session == nil || c.session.token == "" {
 		return false, nil
 	}
 
-	res, err := c.httpClient.PostForm(
-		c.baseURL+EndpointLoginCheck,
-		url.Values{
-			"method": []string{"cli"},
-		},
-	)
+	res, err := c.postForm(ctx, EndpointLoginCheck, url.Values{"method": []string{"cli"}})
 	if err != nil {
 		return false, err
 	}
@@ -290,4 +281,14 @@ func (c *Client) loggedIn() (bool, error) {
 	}
 	loggedIn := response.Ok.AcctsVersion != ""
 	return loggedIn, nil
+}
+
+func (c *Client) postForm(ctx context.Context, path string, data url.Values) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodPost, c.baseURL+path, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(ctx)
+	return c.httpClient.Do(req)
 }

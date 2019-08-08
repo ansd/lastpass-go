@@ -1,6 +1,7 @@
 package lastpass_test
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -38,29 +39,29 @@ var _ = Describe("Client", func() {
 	AssertUnauthenticatedBehavior := func() {
 		Describe("Accounts()", func() {
 			It("returns AuthenticationError", func() {
-				accts, err := client.Accounts()
+				accts, err := client.Accounts(context.Background())
 				Expect(accts).To(BeNil())
 				Expect(err).To(MatchError(NewAuthenticationError("client not logged in")))
 			})
 		})
 		Describe("Add()", func() {
 			It("returns AuthenticationError", func() {
-				Expect(client.Add(acct)).To(MatchError(NewAuthenticationError("client not logged in")))
+				Expect(client.Add(context.Background(), acct)).To(MatchError(NewAuthenticationError("client not logged in")))
 			})
 		})
 		Describe("Update()", func() {
 			It("returns AuthenticationError", func() {
-				Expect(client.Update(acct)).To(MatchError(NewAuthenticationError("client not logged in")))
+				Expect(client.Update(context.Background(), acct)).To(MatchError(NewAuthenticationError("client not logged in")))
 			})
 		})
 		Describe("Delete()", func() {
 			It("returns AuthenticationError", func() {
-				Expect(client.Delete(acct.ID)).To(MatchError(NewAuthenticationError("client not logged in")))
+				Expect(client.Delete(context.Background(), acct.ID)).To(MatchError(NewAuthenticationError("client not logged in")))
 			})
 		})
 		Describe("Logout()", func() {
 			It("succeeds", func() {
-				Expect(client.Logout()).To(Succeed())
+				Expect(client.Logout(context.Background())).To(Succeed())
 			})
 		})
 	}
@@ -120,7 +121,7 @@ var _ = Describe("Client", func() {
 				Describe("NewClient()", func() {
 					It("returns AuthenticationError", func() {
 						var err error
-						client, err = NewClient(user, passwd, WithBaseURL(server.URL()))
+						client, err = NewClient(context.Background(), user, passwd, WithBaseURL(server.URL()))
 						Expect(client).To(BeNil())
 						Expect(err).To(MatchError(NewAuthenticationError(fmt.Sprintf("%s: %s", cause, msg))))
 						// /iterations.php, /login.php
@@ -160,7 +161,7 @@ var _ = Describe("Client", func() {
 				Describe("NewClient()", func() {
 					It("returns AuthenticationError", func() {
 						var err error
-						client, err = NewClient(user, passwd, WithBaseURL(server.URL()))
+						client, err = NewClient(context.Background(), user, passwd, WithBaseURL(server.URL()))
 						Expect(client).To(BeNil())
 						Expect(err).To(MatchError(MatchRegexp(`^didn't receive out-of-band approval within the last \d seconds$`)))
 						// /iterations.php, /login.php, MaxLoginRetries * /login/php
@@ -183,7 +184,7 @@ var _ = Describe("Client", func() {
 					),
 				)
 				var err error
-				client, err = NewClient(user, passwd, WithBaseURL(server.URL()))
+				client, err = NewClient(context.Background(), user, passwd, WithBaseURL(server.URL()))
 				Expect(err).NotTo(HaveOccurred())
 			})
 
@@ -236,7 +237,7 @@ var _ = Describe("Client", func() {
 	</response>`
 						})
 						It("requests /getaccts.php", func() {
-							accts, err := client.Accounts()
+							accts, err := client.Accounts(context.Background())
 							Expect(err).NotTo(HaveOccurred())
 							Expect(accts).To(ConsistOf(
 								&Account{
@@ -279,7 +280,7 @@ var _ = Describe("Client", func() {
 								urlHexEncoded, urlHexEncoded)
 						})
 						It("filters out group accounts", func() {
-							accts, err := client.Accounts()
+							accts, err := client.Accounts(context.Background())
 							Expect(err).NotTo(HaveOccurred())
 							Expect(accts).To(BeEmpty())
 							// /iterations.php, /login.php, /login_check.php, /getaccts.php
@@ -326,7 +327,7 @@ var _ = Describe("Client", func() {
 							})
 							It("requests /show_website.php with aid=0 and sets account ID correctly", func() {
 								acct.ID = "ignored"
-								Expect(client.Add(acct)).To(Succeed())
+								Expect(client.Add(context.Background(), acct)).To(Succeed())
 								Expect(acct.ID).To(Equal("test ID"))
 							})
 						})
@@ -336,7 +337,7 @@ var _ = Describe("Client", func() {
 								form.Set("aid", acct.ID)
 							})
 							It("requests /show_website.php with correct aid", func() {
-								Expect(client.Update(acct)).To(Succeed())
+								Expect(client.Update(context.Background(), acct)).To(Succeed())
 							})
 						})
 					})
@@ -350,7 +351,7 @@ var _ = Describe("Client", func() {
 							form.Set("aid", acct.ID)
 						})
 						It("requests /show_website.php with correct aid and delete=1", func() {
-							Expect(client.Delete(acct.ID)).To(Succeed())
+							Expect(client.Delete(context.Background(), acct.ID)).To(Succeed())
 						})
 					})
 				})
@@ -372,13 +373,13 @@ var _ = Describe("Client", func() {
 					})
 					Describe("Update()", func() {
 						It("returns AccountNotFoundError", func() {
-							Expect(client.Update(acct)).To(MatchError(&AccountNotFoundError{acct.ID}))
+							Expect(client.Update(context.Background(), acct)).To(MatchError(&AccountNotFoundError{acct.ID}))
 						})
 					})
 					Describe("Delete()", func() {
 						It("returns AccountNotFoundError", func() {
 							id := "notExisting"
-							Expect(client.Delete(id)).To(MatchError(&AccountNotFoundError{id}))
+							Expect(client.Delete(context.Background(), id)).To(MatchError(&AccountNotFoundError{id}))
 						})
 					})
 				})
@@ -397,13 +398,26 @@ var _ = Describe("Client", func() {
 								ghttp.RespondWith(http.StatusOK, ""),
 							),
 						)
-						Expect(client.Logout()).To(Succeed())
+						Expect(client.Logout(context.Background())).To(Succeed())
 					})
 					AfterEach(func() {
 						// /iterations.php, /login.php, /login_check.php, /logout.php
 						Expect(server.ReceivedRequests()).To(HaveLen(4))
 					})
 					AssertUnauthenticatedBehavior()
+				})
+
+				Context("when request gets canceled", func() {
+					var ctx context.Context
+					BeforeEach(func() {
+						var cancel context.CancelFunc
+						ctx, cancel = context.WithCancel(context.Background())
+						cancel()
+					})
+					It("returns correct error", func() {
+						_, err := client.Accounts(ctx)
+						Expect(err).To(MatchError(MatchRegexp("context canceled")))
+					})
 				})
 			})
 
