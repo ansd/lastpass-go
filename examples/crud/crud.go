@@ -1,3 +1,4 @@
+// Example showing how to create, read, update, delete accounts.
 package main
 
 import (
@@ -11,9 +12,8 @@ import (
 )
 
 func main() {
-
 	// read LastPass username and master password from file
-	b, err := ioutil.ReadFile("credentials.txt")
+	b, err := ioutil.ReadFile("../credentials.txt")
 	if err != nil {
 		log.Fatalln(err)
 	}

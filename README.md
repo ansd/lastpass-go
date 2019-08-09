@@ -33,7 +33,7 @@ import "github.com/ansd/lastpass-go"
 ## Usage
 
 Below, error handling is excluded for brevity.
-See [example](https://github.com/ansd/lastpass-go/tree/master/example) directory for a complete example.
+See [examples](https://github.com/ansd/lastpass-go/tree/master/examples) directory for more examples.
 
 ```go
 // authenticate with LastPass servers

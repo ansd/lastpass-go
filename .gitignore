@@ -1,4 +1,5 @@
-example/credentials.txt
-example/example
+examples/credentials.txt
+examples/crud/crud
+examples/log/log
 
 integration/credentials.txt
