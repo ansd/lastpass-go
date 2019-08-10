@@ -1,3 +1,6 @@
+[![Documentation](https://godoc.org/github.com/ansd/lastpass-go?status.svg)](http://godoc.org/github.com/ansd/lastpass-go)
+[![Build Status](https://www.travis-ci.com/ansd/lastpass-go.svg?branch=master)](https://www.travis-ci.com/ansd/lastpass-go)
+
 # Go client for LastPass
 
 This repository is a clone of https://github.com/mattn/lastpass-go.
