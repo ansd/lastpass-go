@@ -33,6 +33,7 @@ type Client struct {
 	session       *session
 	baseURL       string
 	otp           string
+	logger        Logger
 }
 
 // ClientOption is the type of constructor options for NewClient(...).
@@ -90,6 +91,13 @@ func WithOneTimePassword(oneTimePassword string) ClientOption {
 func WithBaseURL(baseURL string) ClientOption {
 	return func(c *Client) {
 		c.baseURL = baseURL
+	}
+}
+
+// WithLogger enables logging.
+func WithLogger(logger Logger) ClientOption {
+	return func(c *Client) {
+		c.logger = logger
 	}
 }
 
@@ -290,5 +298,6 @@ func (c *Client) postForm(ctx context.Context, path string, data url.Values) (*h
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(ctx)
+	log(ctx, c, "%s %s\n", req.Method, req.URL)
 	return c.httpClient.Do(req)
 }

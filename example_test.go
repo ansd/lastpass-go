@@ -2,6 +2,8 @@ package lastpass_test
 
 import (
 	"context"
+	"log"
+	"os"
 
 	"github.com/ansd/lastpass-go"
 )
@@ -11,10 +13,7 @@ import (
 // If an invalid user name or master password is supplied,
 // NewClient returns an error of type *AuthenticationError.
 func ExampleNewClient_passwordBasedAuthentication() {
-	_, err := lastpass.NewClient(context.Background(), "user name", "master password")
-	if err != nil {
-		// TODO handle error
-	}
+	_, _ = lastpass.NewClient(context.Background(), "user name", "master password")
 }
 
 // Login with two-factor authentication:
@@ -30,10 +29,7 @@ func ExampleNewClient_passwordBasedAuthentication() {
 // If the user does not accept the out-of-band mechanism within the 90 seconds,
 // NewClient returns an error of type *AuthenticationError.
 func ExampleNewClient_outOfBandAuthentication() {
-	_, err := lastpass.NewClient(context.Background(), "user name", "master password")
-	if err != nil {
-		// TODO handle error
-	}
+	_, _ = lastpass.NewClient(context.Background(), "user name", "master password")
 }
 
 // Login with two-factor authentication:
@@ -44,9 +40,24 @@ func ExampleNewClient_outOfBandAuthentication() {
 // If an invalid user name, master password, or one-time password is supplied,
 // NewClient returns an error of type *AuthenticationError.
 func ExampleNewClient_oneTimePasswordAuthentication() {
-	_, err := lastpass.NewClient(context.Background(), "user name", "master password",
+	_, _ = lastpass.NewClient(context.Background(), "user name", "master password",
 		lastpass.WithOneTimePassword("123456"))
-	if err != nil {
-		// TODO handle error
-	}
+}
+
+// WithLogger enables logging for all methods on lastpass.Client.
+func ExampleWithLogger() {
+	logger := log.New(os.Stderr, "lastpass: ", log.LstdFlags)
+
+	_, _ = lastpass.NewClient(context.Background(), "user name", "master password",
+		lastpass.WithLogger(logger))
+}
+
+// NewContextWithLogger logs only for a specific method (request scope).
+// In the following example, it emits logs for only the NewClient method.
+func ExampleNewContextWithLogger() {
+	logger := log.New(os.Stderr, "lastpass: ", log.LstdFlags)
+
+	_, _ = lastpass.NewClient(
+		lastpass.NewContextWithLogger(context.Background(), logger),
+		"user name", "master password")
 }

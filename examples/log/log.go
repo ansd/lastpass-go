@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http/httptrace"
+	"os"
 	"strings"
 
 	"github.com/ansd/lastpass-go"
@@ -21,28 +22,32 @@ func main() {
 	username := lines[0]
 	masterPassword := lines[1]
 
-	// log requests' HTTP method and path
+	// There are three different options how to log HTTP requests.
+
+	// option 1: enable logging for all methods on lastpass.Client
+	// use any logger which implements lastpass.Logger (i.e. func Printf(format string, v ...interface{}))
+	logger := log.New(os.Stderr, "client logger ", log.LstdFlags)
+	client, err := lastpass.NewClient(context.Background(), username, masterPassword, lastpass.WithLogger(logger))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// option 2: enable logging for only a specific method (request scope)
+	logger = log.New(os.Stderr, "context logger ", log.LstdFlags)
+	_, err = client.Accounts(lastpass.NewContextWithLogger(context.Background(), logger))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// option 3: enable HTTP tracing for a specific method (request scope)
+	logger = log.New(os.Stderr, "HTTP tracer ", log.LstdFlags)
 	trace := &httptrace.ClientTrace{
 		WroteHeaderField: func(key string, value []string) {
 			if key == ":method" || key == ":path" {
-				log.Println(key, value)
+				logger.Println(key, value)
 			}
 		},
 	}
-
-	// NewClient() authenticates with LastPass servers
-	client, err := lastpass.NewClient(httptrace.WithClientTrace(context.Background(), trace), username, masterPassword)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	// read all Accounts()
-	_, err = client.Accounts(httptrace.WithClientTrace(context.Background(), trace))
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	// Logout()
 	if err = client.Logout(httptrace.WithClientTrace(context.Background(), trace)); err != nil {
 		log.Fatalln(err)
 	}
