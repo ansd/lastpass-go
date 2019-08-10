@@ -3,4 +3,11 @@ language: go
 go:
 - 1.x
 
-script: go test -v .
+branches:
+  only:
+    - master
+
+script: go test -v -coverprofile=coverage.txt -covermode=atomic .
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
