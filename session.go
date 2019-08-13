@@ -2,12 +2,17 @@ package lastpass
 
 import (
 	"context"
+	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
 	"net/url"
 	"strconv"
 	"time"
+
+	"golang.org/x/crypto/pbkdf2"
 )
 
 // MaxLoginRetries determines the maximum number of login retries
@@ -19,6 +24,8 @@ const MaxLoginRetries = 7
 type session struct {
 	passwdIterations int
 	token            string
+	// user's private key for decrypting accounts in shared folders
+	privateKey *rsa.PrivateKey
 }
 
 func (c *Client) initSession(ctx context.Context, password string) error {
@@ -55,11 +62,12 @@ func (c *Client) requestIterationCount(ctx context.Context, username string) err
 
 func (c *Client) login(ctx context.Context, password string) error {
 	form := url.Values{
-		"method":     []string{"cli"},
-		"xml":        []string{"1"},
-		"username":   []string{c.user},
-		"hash":       []string{c.loginHash(password)},
-		"iterations": []string{fmt.Sprint(c.session.passwdIterations)},
+		"method":               []string{"cli"},
+		"xml":                  []string{"1"},
+		"username":             []string{c.user},
+		"hash":                 []string{c.loginHash(password)},
+		"iterations":           []string{fmt.Sprint(c.session.passwdIterations)},
+		"includeprivatekeyenc": []string{"1"},
 	}
 	if c.otp != "" {
 		form.Set("otp", c.otp)
@@ -78,8 +86,9 @@ func (c *Client) login(ctx context.Context, password string) error {
 		RetryID string `xml:"retryid,attr"`
 	}
 	type response struct {
-		Error Error  `xml:"error"`
-		Token string `xml:"token,attr"`
+		Error               Error  `xml:"error"`
+		Token               string `xml:"token,attr"`
+		PrivateKeyEncrypted string `xml:"privatekeyenc,attr"`
 	}
 	rsp := &response{}
 	if err = xml.NewDecoder(httpRsp.Body).Decode(rsp); err != nil {
@@ -118,5 +127,31 @@ func (c *Client) login(ctx context.Context, password string) error {
 	}
 
 	c.session.token = rsp.Token
+	privateKey, err := decryptPrivateKey(rsp.PrivateKeyEncrypted, c.encryptionKey)
+	if err != nil {
+		return err
+	}
+	c.session.privateKey = privateKey
+
 	return nil
+}
+
+func (c *Client) loginHash(password string) string {
+	iterations := c.session.passwdIterations
+	key := encryptionKey(c.user, password, iterations)
+	c.encryptionKey = key
+
+	if iterations == 1 {
+		b := sha256.Sum256([]byte(hex.EncodeToString(key) + password))
+		return hex.EncodeToString(b[:])
+	}
+	return hex.EncodeToString(pbkdf2.Key(key, []byte(password), 1, 32, sha256.New))
+}
+
+func encryptionKey(username, password string, passwdIterations int) []byte {
+	if passwdIterations == 1 {
+		b := sha256.Sum256([]byte(username + password))
+		return b[:]
+	}
+	return pbkdf2.Key([]byte(password), []byte(username), passwdIterations, 32, sha256.New)
 }

@@ -3,7 +3,8 @@
 [![codecov](https://codecov.io/gh/ansd/lastpass-go/branch/master/graph/badge.svg)](https://codecov.io/gh/ansd/lastpass-go)
 # Go client for LastPass
 
-This repository is a clone of https://github.com/mattn/lastpass-go.
+This repository is a port of [detunized/lastpass-ruby](https://github.com/detunized/lastpass-ruby)
+and a clone of [mattn/lastpass-go](https://github.com/mattn/lastpass-go).
 
 ## Features
 - login via
@@ -11,7 +12,7 @@ This repository is a clone of https://github.com/mattn/lastpass-go.
 	- two-factor authentication with out-of-band mechanism such as push notification to LastPass Authenticator or Duo Security
 	- two-factor authentication with one-time password from LastPass Authenticator, Google Authenticator, Microsoft Authenticator, YubiKey, Duo Security, Sesame, etc.
 - create account
-- read accounts
+- read accounts (including accounts from shared folders)
 - update account
 - delete account
 - logout

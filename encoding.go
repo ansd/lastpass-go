@@ -5,61 +5,90 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-
-	"golang.org/x/crypto/pbkdf2"
+	"strings"
 )
 
-func (c *Client) loginHash(password string) string {
-	iterations := c.session.passwdIterations
-	key := encryptionKey(c.user, password, iterations)
-	c.encryptionKey = key
-
-	if iterations == 1 {
-		b := sha256.Sum256([]byte(hex.EncodeToString(key) + password))
-		return hex.EncodeToString(b[:])
+func extractChunks(r io.Reader) ([]*chunk, error) {
+	chunks := make([]*chunk, 0)
+	for {
+		chunkID, err := readID(r)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+		}
+		payload, err := readItem(r)
+		if err != nil {
+			return nil, err
+		}
+		c := &chunk{chunkID, payload}
+		chunks = append(chunks, c)
 	}
-	return hex.EncodeToString(pbkdf2.Key(key, []byte(password), 1, 32, sha256.New))
+	return chunks, nil
 }
 
-func encryptionKey(username, password string, passwdIterations int) []byte {
-	if passwdIterations == 1 {
-		b := sha256.Sum256([]byte(username + password))
-		return b[:]
+func readID(r io.Reader) (uint32, error) {
+	var b [4]byte
+	_, err := r.Read(b[:])
+	if err != nil {
+		return 0, err
 	}
-	return pbkdf2.Key([]byte(password), []byte(username), passwdIterations, 32, sha256.New)
+	return chunkIDFromBytes(b), nil
 }
 
-func pkcs7Pad(data []byte, blockSize int) []byte {
-	padding := blockSize - len(data)%blockSize
-	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
-	return append(data, padtext...)
+func readItem(r io.Reader) ([]byte, error) {
+	size, err := readSize(r)
+	if err != nil {
+		return nil, err
+	}
+	b := make([]byte, size)
+	n, err := r.Read(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
 }
 
-func pkcs7Unpad(data []byte) []byte {
-	size := len(data)
-	unpadding := int(data[size-1])
-	return data[:(size - unpadding)]
+func readSize(r io.Reader) (uint32, error) {
+	var b [4]byte
+	_, err := r.Read(b[:])
+	if err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint32(b[:]), nil
 }
 
-func encodeBase64(b []byte) []byte {
-	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(b)))
-	base64.StdEncoding.Encode(encoded, b)
-	return encoded
+func skipItem(r io.Reader) error {
+	readSize, err := readSize(r)
+	if err != nil {
+		return err
+	}
+	b := make([]byte, readSize)
+	_, err = r.Read(b)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func decodeBase64(b []byte) []byte {
-	d := make([]byte, len(b))
-	n, _ := base64.StdEncoding.Decode(d, b)
-	return d[:n]
+func chunkIDFromBytes(b [4]byte) uint32 {
+	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
 
-func encryptAES256Cbc(plaintext string, encryptionKey []byte) (string, error) {
+func chunkIDFromString(s string) uint32 {
+	b := []byte(s)
+	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+}
+
+func encryptAESCBC(plaintext string, encryptionKey []byte) (string, error) {
 	if len(plaintext) == 0 {
 		return "", nil
 	}
@@ -88,31 +117,81 @@ func encryptAES256Cbc(plaintext string, encryptionKey []byte) (string, error) {
 	return fmt.Sprintf("!%s|%s", ivBase64, ciphertextBase64), nil
 }
 
-func decryptAES256Cbc(encrypted string, encryptionKey []byte) (string, error) {
-	data := []byte(encrypted)
-
+func decryptItem(data []byte, encryptionKey []byte) (string, error) {
 	if len(data) == 0 {
 		return "", nil
 	}
+
 	if data[0] != '!' {
-		return "", errors.New("input doesn't start with '!'")
+		return "", errors.New("data is not AES 256 CBC enrypted: input doesn't start with '!'")
 	}
-	if data[25] != '|' {
-		return "", errors.New("can't determine length of IV")
+	data = data[1:]
+
+	var iv, in []byte
+	if len(data)%16 == 0 {
+		// CBC plain enrypted
+		iv, in = data[:aes.BlockSize], data[aes.BlockSize:]
+
+	} else {
+		// CBC base 64 enrypted
+		if data[24] != '|' {
+			return "", errors.New("AES 256 CBC base64: can't determine length of IV")
+		}
+
+		ivBase64 := data[:24]
+		var err error
+		iv, err = decodeBase64(ivBase64)
+		if err != nil {
+			return "", err
+		}
+
+		inBase64 := data[25:]
+		in, err = decodeBase64(inBase64)
+		if err != nil {
+			return "", err
+		}
+	}
+	return decryptAES256CBC(iv, in, encryptionKey)
+}
+
+func decryptPrivateKey(privateKeyEncrypted string, encryptionKey []byte) (*rsa.PrivateKey, error) {
+	privateKeyAESEncrypted, err := hex.DecodeString(privateKeyEncrypted)
+	if err != nil {
+		return nil, err
 	}
 
-	ivBase64 := data[1:25]
-	iv := decodeBase64(ivBase64)
+	iv := encryptionKey[:aes.BlockSize]
+	keyAnnotated, err := decryptAES256CBC(iv, privateKeyAESEncrypted, encryptionKey)
+	if err != nil {
+		return nil, err
+	}
 
-	inBase64 := data[26:]
-	in := decodeBase64(inBase64)
+	keyTrimmed := strings.TrimPrefix(keyAnnotated, "LastPassPrivateKey<")
+	keyTrimmed = strings.TrimSuffix(keyTrimmed, ">LastPassPrivateKey")
+
+	keyPlain, err := hex.DecodeString(keyTrimmed)
+	if err != nil {
+		return nil, err
+	}
+
+	keyParsed, err := x509.ParsePKCS8PrivateKey(keyPlain)
+	if err != nil {
+		return nil, err
+	}
+	rsaPrivateKey, ok := keyParsed.(*rsa.PrivateKey)
+	if !ok {
+		return nil, errors.New("did not find RSA private key type in PKCS#8 wrapping")
+	}
+	return rsaPrivateKey, nil
+}
+
+func decryptAES256CBC(iv, in, encryptionKey []byte) (string, error) {
 	lenIn := len(in)
-
 	if lenIn < aes.BlockSize {
 		return "", fmt.Errorf("input is only %d bytes; expected at least %d bytes", lenIn, aes.BlockSize)
 	}
 	if lenIn%aes.BlockSize != 0 {
-		return "", fmt.Errorf("input size is not a multilpe of %d bytes", aes.BlockSize)
+		return "", fmt.Errorf("input size (%d bytes) is not a multilpe of %d bytes", lenIn, aes.BlockSize)
 	}
 
 	block, err := aes.NewCipher(encryptionKey)
@@ -122,6 +201,41 @@ func decryptAES256Cbc(encrypted string, encryptionKey []byte) (string, error) {
 	dec := cipher.NewCBCDecrypter(block, iv)
 	out := make([]byte, lenIn)
 	dec.CryptBlocks(out, in)
-
 	return string(pkcs7Unpad(out)), nil
+}
+
+func encodeBase64(b []byte) []byte {
+	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(b)))
+	base64.StdEncoding.Encode(encoded, b)
+	return encoded
+}
+
+func decodeBase64(b []byte) ([]byte, error) {
+	d := make([]byte, len(b))
+	n, err := base64.StdEncoding.Decode(d, b)
+	if err != nil {
+		return nil, err
+	}
+	return d[:n], nil
+}
+
+func decodeHex(src []byte) ([]byte, error) {
+	dst := make([]byte, hex.DecodedLen(len(src)))
+	_, err := hex.Decode(dst, src)
+	if err != nil {
+		return nil, err
+	}
+	return dst, nil
+}
+
+func pkcs7Pad(data []byte, blockSize int) []byte {
+	padding := blockSize - len(data)%blockSize
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(data, padtext...)
+}
+
+func pkcs7Unpad(data []byte) []byte {
+	size := len(data)
+	unpadding := int(data[size-1])
+	return data[:(size - unpadding)]
 }

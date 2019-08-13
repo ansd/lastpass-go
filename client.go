@@ -221,23 +221,23 @@ func (c *Client) upsert(ctx context.Context, acct *Account) (result, error) {
 		return response.Result, &AuthenticationError{"client not logged in"}
 	}
 
-	nameEncrypted, err := encryptAES256Cbc(acct.Name, c.encryptionKey)
+	nameEncrypted, err := encryptAESCBC(acct.Name, c.encryptionKey)
 	if err != nil {
 		return response.Result, err
 	}
-	userNameEncrypted, err := encryptAES256Cbc(acct.Username, c.encryptionKey)
+	userNameEncrypted, err := encryptAESCBC(acct.Username, c.encryptionKey)
 	if err != nil {
 		return response.Result, err
 	}
-	passwordEncrypted, err := encryptAES256Cbc(acct.Password, c.encryptionKey)
+	passwordEncrypted, err := encryptAESCBC(acct.Password, c.encryptionKey)
 	if err != nil {
 		return response.Result, err
 	}
-	groupEncrypted, err := encryptAES256Cbc(acct.Group, c.encryptionKey)
+	groupEncrypted, err := encryptAESCBC(acct.Group, c.encryptionKey)
 	if err != nil {
 		return response.Result, err
 	}
-	notesEncrypted, err := encryptAES256Cbc(acct.Notes, c.encryptionKey)
+	notesEncrypted, err := encryptAESCBC(acct.Notes, c.encryptionKey)
 	if err != nil {
 		return response.Result, err
 	}
