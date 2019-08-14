@@ -24,7 +24,7 @@ const MaxLoginRetries = 7
 type session struct {
 	passwdIterations int
 	token            string
-	// user's private key for decrypting accounts in shared folders
+	// user's private key for decrypting sharing keys (encryption keys of shared folders)
 	privateKey *rsa.PrivateKey
 }
 

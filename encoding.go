@@ -24,6 +24,7 @@ func extractChunks(r io.Reader) ([]*chunk, error) {
 			if err == io.EOF {
 				break
 			}
+			return nil, err
 		}
 		payload, err := readItem(r)
 		if err != nil {
@@ -73,10 +74,7 @@ func skipItem(r io.Reader) error {
 	}
 	b := make([]byte, readSize)
 	_, err = r.Read(b)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func chunkIDFromBytes(b [4]byte) uint32 {
@@ -118,13 +116,19 @@ func encryptAESCBC(plaintext string, encryptionKey []byte) (string, error) {
 }
 
 func decryptItem(data []byte, encryptionKey []byte) (string, error) {
-	if len(data) == 0 {
+	lenData := len(data)
+	if lenData == 0 {
 		return "", nil
 	}
 
 	if data[0] != '!' {
+		size64 := lenData % 64
+		if lenData%16 == 0 || size64 == 0 || size64 == 24 || size64 == 44 {
+			return "", &weakECBEncryptionError{}
+		}
 		return "", errors.New("data is not AES 256 CBC enrypted: input doesn't start with '!'")
 	}
+
 	data = data[1:]
 
 	var iv, in []byte
@@ -154,6 +158,14 @@ func decryptItem(data []byte, encryptionKey []byte) (string, error) {
 	return decryptAES256CBC(iv, in, encryptionKey)
 }
 
+// decrypt user's private key with user's encryption key
+//
+// Background:
+// The first time, the user logs into LastPass using any LastPass client
+// a key pair gets created. The public key is uploaded unencrypted to LastPass so that
+// other users can encrypt data for the user (e.g. sharing keys).
+// The private key gets encrypted locally with the user's encryption key and also
+// uploaded to LastPass.
 func decryptPrivateKey(privateKeyEncrypted string, encryptionKey []byte) (*rsa.PrivateKey, error) {
 	privateKeyAESEncrypted, err := hex.DecodeString(privateKeyEncrypted)
 	if err != nil {

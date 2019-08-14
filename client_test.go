@@ -321,7 +321,7 @@ var _ = Describe("Client", func() {
 
 					Context("when shared folder exists whose sharing key needs to be decrypted with user's RSA private key", func() {
 						BeforeEach(func() {
-							rsp = blobSharingKeyRSAencrypted
+							rsp = blobSharingKeyRSAEncrypted
 						})
 						It("parses account in shared folder", func() {
 							accts, err := client.Accounts(context.Background())
@@ -1099,9 +1099,8 @@ const (
 		"AAATAAAAAARU5ETQAAAAJPSw=="
 
 		// base 64 encoded blob returned by /getaccts.php endpoint containing SHAR, ACCT
-		// the sharing key of the SHAR chunk is encrypted with user's public key (rather than the sharing key
-		// being AES encrypted)
-	blobSharingKeyRSAencrypted = "TFBBVgAAAAE0RU5UVQAAAAExRU5UTQAAAAEyQVRWUgAAAAEwRU5DVQAAACxQVTZFQ05lanBuSURlZ2R" +
+		// the sharing key of the SHAR chunk is encrypted with user's public key (rather than being AES encrypted)
+	blobSharingKeyRSAEncrypted = "TFBBVgAAAAE0RU5UVQAAAAExRU5UTQAAAAEyQVRWUgAAAAEwRU5DVQAAACxQVTZFQ05lanBuSURlZ2R" +
 		"mbGl6ME9TbldkZzhRMGtjM0xMWU1ZUFVPYTAwPUNCQ1UAAAABMUJCVEUAAAAKMTU2ODMwMjI4MUlQVEUAAAAKMTU2ODMwMjI4MVdNVEUA" +
 		"AAAKMTU2ODMwMjI4MUFOVEUAAAAKMTU2ODMwMjI4MURPVEUAAAAKMTU2ODMwMjI4MUZFVEUAAAAKMTU2ODMwMjI4MUZVVEUAAAAKMTU2O" +
 		"DMwMjI4MVNZVEUAAAAKMTU2ODMwMjI4MVdPVEUAAAAKMTU2ODMwMjI4MVRBVEUAAAAKMTU2ODMwMjI4MVdQVEUAAAAKMTU2ODMwMjI4MV" +
