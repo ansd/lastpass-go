@@ -34,10 +34,8 @@ type chunk struct {
 }
 
 // Accounts lists all LastPass accounts.
-// If Client is not logged in, an *AuthenticationError is returned.
 //
-// Accounts which are encrypted with the weak ECB mode are not returned by
-// this method. Instead, a warning gets logged to update these accounts.
+// If Client is not logged in, an *AuthenticationError is returned.
 func (c *Client) Accounts(ctx context.Context) ([]*Account, error) {
 	loggedIn, err := c.loggedIn(ctx)
 	if err != nil {
@@ -82,10 +80,10 @@ func (c *Client) Accounts(ctx context.Context) ([]*Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.parseBlob(ctx, bytes.NewReader(blob))
+	return c.parseBlob(bytes.NewReader(blob))
 }
 
-func (c *Client) parseBlob(ctx context.Context, r io.Reader) ([]*Account, error) {
+func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
 	chunks, err := extractChunks(r)
 	if err != nil {
 		return nil, err
@@ -104,10 +102,6 @@ func (c *Client) parseBlob(ctx context.Context, r io.Reader) ([]*Account, error)
 		case chunkIDFromString("ACCT"):
 			acct, err := parseAccount(bytes.NewReader(chunk.payload), key)
 			if err != nil {
-				if _, ok := err.(*weakECBEncryptionError); ok {
-					log(ctx, c, err.Error())
-					continue
-				}
 				return nil, err
 			}
 			if acct.URL == "http://group" {
@@ -134,14 +128,6 @@ func (c *Client) parseBlob(ctx context.Context, r io.Reader) ([]*Account, error)
 	return accts, nil
 }
 
-func includeAccountID(err error, accountID string) error {
-	if ecbErr, ok := err.(*weakECBEncryptionError); ok {
-		ecbErr.accountID = accountID
-		return ecbErr
-	}
-	return err
-}
-
 func parseAccount(r io.Reader, encryptionKey []byte) (*Account, error) {
 	acctID, err := readItem(r)
 	if err != nil {
@@ -155,7 +141,7 @@ func parseAccount(r io.Reader, encryptionKey []byte) (*Account, error) {
 	}
 	name, err := decryptItem(nameEncrypted, encryptionKey)
 	if err != nil {
-		return nil, includeAccountID(err, id)
+		return nil, err
 	}
 
 	groupEncrypted, err := readItem(r)
@@ -164,7 +150,7 @@ func parseAccount(r io.Reader, encryptionKey []byte) (*Account, error) {
 	}
 	group, err := decryptItem(groupEncrypted, encryptionKey)
 	if err != nil {
-		return nil, includeAccountID(err, id)
+		return nil, err
 	}
 
 	urlHexEncoded, err := readItem(r)
@@ -182,7 +168,7 @@ func parseAccount(r io.Reader, encryptionKey []byte) (*Account, error) {
 	}
 	notes, err := decryptItem(notesEncrypted, encryptionKey)
 	if err != nil {
-		return nil, includeAccountID(err, id)
+		return nil, err
 	}
 
 	for i := 0; i < 2; i++ {
@@ -197,7 +183,7 @@ func parseAccount(r io.Reader, encryptionKey []byte) (*Account, error) {
 	}
 	username, err := decryptItem(usernameEncrypted, encryptionKey)
 	if err != nil {
-		return nil, includeAccountID(err, id)
+		return nil, err
 	}
 
 	passwordEncrypted, err := readItem(r)
@@ -206,7 +192,7 @@ func parseAccount(r io.Reader, encryptionKey []byte) (*Account, error) {
 	}
 	password, err := decryptItem(passwordEncrypted, encryptionKey)
 	if err != nil {
-		return nil, includeAccountID(err, id)
+		return nil, err
 	}
 
 	return &Account{
@@ -223,11 +209,10 @@ func parseAccount(r io.Reader, encryptionKey []byte) (*Account, error) {
 func parseShare(r io.Reader, encryptionKey []byte, privateKey *rsa.PrivateKey) (
 	name string, sharingKey []byte, err error) {
 
-	shareID, err := readItem(r)
-	if err != nil {
+	// skip ID
+	if err = skipItem(r); err != nil {
 		return "", nil, err
 	}
-	id := string(shareID)
 
 	sharingKeyRSAEncryptedHex, err := readItem(r)
 	if err != nil {
@@ -256,7 +241,7 @@ func parseShare(r io.Reader, encryptionKey []byte, privateKey *rsa.PrivateKey) (
 		// the sharing key with their private key once before (possibly in some other LastPass client).
 		key, err := decryptItem(sharingKeyAESEncrypted, encryptionKey)
 		if err != nil {
-			return "", nil, includeAccountID(err, id)
+			return "", nil, err
 		}
 		sharingKey, err = hex.DecodeString(key)
 		if err != nil {
@@ -290,7 +275,7 @@ func parseShare(r io.Reader, encryptionKey []byte, privateKey *rsa.PrivateKey) (
 
 	name, err = decryptItem(nameEncrypted, sharingKey)
 	if err != nil {
-		return "", nil, includeAccountID(err, id)
+		return "", nil, err
 	}
 
 	return name, sharingKey, nil
@@ -301,6 +286,7 @@ func areComplete(chunks []*chunk) bool {
 		return true
 	}
 	lastChunk := chunks[len(chunks)-1]
+	// ENDM = end marker
 	return lastChunk.id == chunkIDFromString("ENDM") &&
 		string(lastChunk.payload) == "OK"
 }

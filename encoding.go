@@ -14,6 +14,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/ansd/lastpass-go/ecb"
 )
 
 func extractChunks(r io.Reader) ([]*chunk, error) {
@@ -115,47 +117,48 @@ func encryptAESCBC(plaintext string, encryptionKey []byte) (string, error) {
 	return fmt.Sprintf("!%s|%s", ivBase64, ciphertextBase64), nil
 }
 
-func decryptItem(data []byte, encryptionKey []byte) (string, error) {
-	lenData := len(data)
-	if lenData == 0 {
+func decryptItem(data, encryptionKey []byte) (string, error) {
+	size := len(data)
+	size16 := size % 16
+	size64 := size % 64
+
+	switch {
+	case size == 0:
 		return "", nil
-	}
 
-	if data[0] != '!' {
-		size64 := lenData % 64
-		if lenData%16 == 0 || size64 == 0 || size64 == 24 || size64 == 44 {
-			return "", &weakECBEncryptionError{}
-		}
-		return "", errors.New("data is not AES 256 CBC enrypted: input doesn't start with '!'")
-	}
+	case data[0] == '!' && size16 == 1:
+		// AES 256 CBC plain encrypted
+		data = data[1:]
+		iv, in := data[:aes.BlockSize], data[aes.BlockSize:]
+		return decryptAES256CBC(iv, in, encryptionKey)
 
-	data = data[1:]
-
-	var iv, in []byte
-	if len(data)%16 == 0 {
-		// CBC plain enrypted
-		iv, in = data[:aes.BlockSize], data[aes.BlockSize:]
-
-	} else {
-		// CBC base 64 enrypted
-		if data[24] != '|' {
-			return "", errors.New("AES 256 CBC base64: can't determine length of IV")
-		}
-
-		ivBase64 := data[:24]
-		var err error
-		iv, err = decodeBase64(ivBase64)
+	case data[0] == '!' && data[25] == '|' && (size64 == 6 || size64 == 26 || size64 == 50):
+		// AES 256 CBC base 64 encrypted
+		ivBase64 := data[1:25]
+		iv, err := decodeBase64(ivBase64)
 		if err != nil {
 			return "", err
 		}
-
-		inBase64 := data[25:]
-		in, err = decodeBase64(inBase64)
+		inBase64 := data[26:]
+		in, err := decodeBase64(inBase64)
 		if err != nil {
 			return "", err
 		}
+		return decryptAES256CBC(iv, in, encryptionKey)
+
+	case size16 == 0:
+		// AES 256 ECB plain encrypted
+		return decryptAES256ECB(data, encryptionKey)
+
+	case size64 == 0 || size64 == 24 || size64 == 44:
+		// AES 256 ECB base 64 encrypted
+		data, err := decodeBase64(data)
+		if err != nil {
+			return "", err
+		}
+		return decryptAES256ECB(data, encryptionKey)
 	}
-	return decryptAES256CBC(iv, in, encryptionKey)
+	return "", errors.New("input doesn't seem to be AES-256 encrypted")
 }
 
 // decrypt user's private key with user's encryption key
@@ -212,6 +215,17 @@ func decryptAES256CBC(iv, in, encryptionKey []byte) (string, error) {
 	}
 	dec := cipher.NewCBCDecrypter(block, iv)
 	out := make([]byte, lenIn)
+	dec.CryptBlocks(out, in)
+	return string(pkcs7Unpad(out)), nil
+}
+
+func decryptAES256ECB(in, encryptionKey []byte) (string, error) {
+	block, err := aes.NewCipher(encryptionKey)
+	if err != nil {
+		return "", err
+	}
+	dec := ecb.NewECBDecrypter(block)
+	out := make([]byte, len(in))
 	dec.CryptBlocks(out, in)
 	return string(pkcs7Unpad(out)), nil
 }

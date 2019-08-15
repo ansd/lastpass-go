@@ -2,9 +2,6 @@
 [![Build Status](https://www.travis-ci.com/ansd/lastpass-go.svg?branch=master)](https://www.travis-ci.com/ansd/lastpass-go)
 # Go client for LastPass
 
-This repository is a port of [detunized/lastpass-ruby](https://github.com/detunized/lastpass-ruby)
-and a clone of [mattn/lastpass-go](https://github.com/mattn/lastpass-go).
-
 ## Features
 - login via
 	- user name and master password
@@ -70,3 +67,12 @@ client.Delete(context.Background(), account.ID)
 // Logout()
 client.Logout(context.Background())
 ```
+
+## Notes
+
+This repository is a port of [detunized/lastpass-ruby](https://github.com/detunized/lastpass-ruby)
+and a clone of [mattn/lastpass-go](https://github.com/mattn/lastpass-go).
+
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/ansd/lastpass-go/blob/master/LICENSE) file for details.
+
+This repository's `ecb` (Electronic Codebook) package contains code which is "Copyright 2013 The Go Authors. All rights reserved."
