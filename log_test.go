@@ -19,10 +19,13 @@ var _ = Describe("Log", func() {
 	var logger Logger
 	var logs strings.Builder
 	var err error
-	const user = "lpass-go4@mailinator.com"
-	const passwd = "a3SH155*Yb79"
+	var user string
+	var passwd string
 
 	BeforeEach(func() {
+		user = readFile("user.txt")
+		passwd = readFile("passwd.txt")
+
 		server = ghttp.NewServer()
 		server.AppendHandlers(
 			ghttp.CombineHandlers(
@@ -34,7 +37,7 @@ var _ = Describe("Log", func() {
 			ghttp.CombineHandlers(
 				ghttp.VerifyRequest(http.MethodPost, EndpointLogin),
 				ghttp.RespondWith(http.StatusOK, fmt.Sprintf("<ok token=\"%s\" privatekeyenc=\"%s\" />",
-					"fakeToken", privateKeyEncrypted)),
+					"fakeToken", readFile("privateKeyEncrypted.txt"))),
 			),
 		)
 		logger = log.New(&logs, "", 0)

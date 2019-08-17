@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	netURL "net/url"
 	"strings"
 )
 
@@ -111,7 +110,7 @@ func (c *Client) Logout(ctx context.Context) error {
 		return nil
 	}
 
-	res, err := c.postForm(ctx, EndointLogout, netURL.Values{
+	res, err := c.postForm(ctx, EndointLogout, url.Values{
 		"method":     []string{"cli"},
 		"noredirect": []string{"1"},
 		"token":      []string{c.session.token},
@@ -174,7 +173,7 @@ func (c *Client) Delete(ctx context.Context, accountID string) error {
 		return &AuthenticationError{"client not logged in"}
 	}
 
-	res, err := c.postForm(ctx, EndpointShowWebsite, netURL.Values{
+	res, err := c.postForm(ctx, EndpointShowWebsite, url.Values{
 		"extjs":  []string{"1"},
 		"delete": []string{"1"},
 		"aid":    []string{accountID},
@@ -242,7 +241,7 @@ func (c *Client) upsert(ctx context.Context, acct *Account) (result, error) {
 		return response.Result, err
 	}
 
-	res, err := c.postForm(ctx, EndpointShowWebsite, netURL.Values{
+	res, err := c.postForm(ctx, EndpointShowWebsite, url.Values{
 		"extjs":     []string{"1"},
 		"token":     []string{c.session.token},
 		"method":    []string{"cli"},

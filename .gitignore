@@ -1,5 +1,6 @@
-examples/credentials.txt
+**/credentials.txt
+
+# executables
 examples/crud/crud
 examples/log/log
-
-integration/credentials.txt
+test/unit/dumpblob/dumpblob
