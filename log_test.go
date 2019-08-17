@@ -37,7 +37,7 @@ var _ = Describe("Log", func() {
 			ghttp.CombineHandlers(
 				ghttp.VerifyRequest(http.MethodPost, EndpointLogin),
 				ghttp.RespondWith(http.StatusOK, fmt.Sprintf("<ok token=\"%s\" privatekeyenc=\"%s\" />",
-					"fakeToken", readFile("privateKeyEncrypted.txt"))),
+					"fakeToken", readFile("privatekeyencrypted.txt"))),
 			),
 		)
 		logger = log.New(&logs, "", 0)
