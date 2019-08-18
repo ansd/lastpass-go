@@ -15,9 +15,6 @@ type AuthenticationError struct {
 	msg string
 }
 
-func NewAuthenticationError(msg string) *AuthenticationError {
-	return &AuthenticationError{msg}
-}
 func (e *AuthenticationError) Error() string {
 	return e.msg
 }

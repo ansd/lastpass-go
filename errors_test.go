@@ -18,14 +18,4 @@ var _ = Describe("Errors", func() {
 			})
 		})
 	})
-
-	Describe("AuthenticationError", func() {
-		var err error = NewAuthenticationError("test")
-
-		Describe("Error()", func() {
-			It("provides error message", func() {
-				Expect(err).To(MatchError("test"))
-			})
-		})
-	})
 })

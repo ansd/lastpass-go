@@ -43,22 +43,29 @@ var _ = Describe("Client", func() {
 			It("returns AuthenticationError", func() {
 				accts, err := client.Accounts(context.Background())
 				Expect(accts).To(BeNil())
-				Expect(err).To(MatchError(NewAuthenticationError("client not logged in")))
+				_, ok := err.(*AuthenticationError)
+				Expect(ok).To(BeTrue())
 			})
 		})
 		Describe("Add()", func() {
 			It("returns AuthenticationError", func() {
-				Expect(client.Add(context.Background(), acct)).To(MatchError(NewAuthenticationError("client not logged in")))
+				err := client.Add(context.Background(), acct)
+				_, ok := err.(*AuthenticationError)
+				Expect(ok).To(BeTrue())
 			})
 		})
 		Describe("Update()", func() {
 			It("returns AuthenticationError", func() {
-				Expect(client.Update(context.Background(), acct)).To(MatchError(NewAuthenticationError("client not logged in")))
+				err := client.Update(context.Background(), acct)
+				_, ok := err.(*AuthenticationError)
+				Expect(ok).To(BeTrue())
 			})
 		})
 		Describe("Delete()", func() {
 			It("returns AuthenticationError", func() {
-				Expect(client.Delete(context.Background(), acct.ID)).To(MatchError(NewAuthenticationError("client not logged in")))
+				err := client.Delete(context.Background(), acct.ID)
+				_, ok := err.(*AuthenticationError)
+				Expect(ok).To(BeTrue())
 			})
 		})
 		Describe("Logout()", func() {
@@ -128,7 +135,9 @@ var _ = Describe("Client", func() {
 						var err error
 						client, err = NewClient(context.Background(), user, passwd, WithBaseURL(server.URL()))
 						Expect(client).To(BeNil())
-						Expect(err).To(MatchError(NewAuthenticationError(fmt.Sprintf("%s: %s", cause, msg))))
+						Expect(err).To(MatchError(fmt.Sprintf("%s: %s", cause, msg)))
+						_, ok := err.(*AuthenticationError)
+						Expect(ok).To(BeTrue())
 						// /iterations.php, /login.php
 						Expect(server.ReceivedRequests()).To(HaveLen(2))
 					})
