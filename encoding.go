@@ -94,18 +94,16 @@ func encryptAESCBC(plaintext string, encryptionKey []byte) (string, error) {
 	}
 
 	padded := pkcs7Pad([]byte(plaintext), aes.BlockSize)
-
-	block, err := aes.NewCipher(encryptionKey)
-	if err != nil {
-		return "", err
-	}
-
 	ciphertext := make([]byte, aes.BlockSize+len(padded))
 	iv := ciphertext[:aes.BlockSize]
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		return "", err
 	}
 
+	block, err := aes.NewCipher(encryptionKey)
+	if err != nil {
+		return "", err
+	}
 	enc := cipher.NewCBCEncrypter(block, iv)
 	enc.CryptBlocks(ciphertext[aes.BlockSize:], padded)
 

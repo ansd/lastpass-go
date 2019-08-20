@@ -68,7 +68,7 @@ func (c *Client) Accounts(ctx context.Context) ([]*Account, error) {
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GET %s: %s", endpoint, res.Status)
+		return nil, fmt.Errorf("GET %s: %s", u.String(), res.Status)
 	}
 
 	defer res.Body.Close()

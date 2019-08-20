@@ -118,11 +118,7 @@ func (c *Client) Logout(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to logout (HTTP status %s)", res.Status)
-	}
+	res.Body.Close()
 	c.session = nil
 	return nil
 }
@@ -298,5 +294,12 @@ func (c *Client) postForm(ctx context.Context, path string, data url.Values) (*h
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(ctx)
 	log(ctx, c, "%s %s\n", req.Method, req.URL)
-	return c.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("POST %s%s: %s", c.baseURL, path, res.Status)
+	}
+	return res, nil
 }
