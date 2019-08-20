@@ -8,80 +8,39 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"encoding/xml"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/http/cookiejar"
-	"net/url"
 
-	"golang.org/x/crypto/pbkdf2"
+	"github.com/ansd/lastpass-go/test/unit/login"
 )
 
 func main() {
-	flag.Parse()
-	args := flag.Args()
-	if len(args) != 2 {
-		panic("Usage: dumpblob <user> <password>")
-	}
-	user := args[0]
-	passwd := args[1]
-
-	cookieJar, err := cookiejar.New(nil)
-	if err != nil {
-		panic(err)
-	}
-	client := &http.Client{
-		Jar: cookieJar,
-	}
-
-	type response struct {
+	type result struct {
 		PrivateKeyEncrypted string `xml:"privatekeyenc,attr"`
 		Blob                string
 	}
-	result := &response{}
+	output := &result{}
 
-	encryptionKey := pbkdf2.Key([]byte(passwd), []byte(user), 100100, 32, sha256.New)
-	loginHash := hex.EncodeToString(pbkdf2.Key(encryptionKey, []byte(passwd), 1, 32, sha256.New))
-	form := url.Values{
-		"method":               []string{"cli"},
-		"xml":                  []string{"1"},
-		"username":             []string{user},
-		"hash":                 []string{loginHash},
-		"iterations":           []string{"100100"},
-		"includeprivatekeyenc": []string{"1"},
-	}
-	rsp, err := client.PostForm("https://lastpass.com/login.php", form)
+	client, respLogin := login.NewClient()
+	output.PrivateKeyEncrypted = respLogin.PrivateKeyEncrypted
+
+	respGetAccts, err := client.Get("https://lastpass.com/getaccts.php?b64=1&requestsrc=cli&mobile=1&hasplugin=1.3.3")
 	if err != nil {
 		panic(err)
 	}
-	if rsp.StatusCode != http.StatusOK {
-		panic("/login.php " + rsp.Status)
+	if respGetAccts.StatusCode != http.StatusOK {
+		panic("/getaccts.php " + respGetAccts.Status)
 	}
-	defer rsp.Body.Close()
-	if err = xml.NewDecoder(rsp.Body).Decode(result); err != nil {
-		panic(err)
-	}
-
-	rsp, err = client.Get("https://lastpass.com/getaccts.php?b64=1&requestsrc=cli&mobile=1&hasplugin=1.3.3")
+	defer respGetAccts.Body.Close()
+	blob, err := ioutil.ReadAll(respGetAccts.Body)
 	if err != nil {
 		panic(err)
 	}
-	if rsp.StatusCode != http.StatusOK {
-		panic("/getaccts.php " + rsp.Status)
-	}
-	defer rsp.Body.Close()
-	blob, err := ioutil.ReadAll(rsp.Body)
-	if err != nil {
-		panic(err)
-	}
-	result.Blob = string(blob)
+	output.Blob = string(blob)
 
-	json, err := json.Marshal(result)
+	json, err := json.Marshal(output)
 	if err != nil {
 		panic(err)
 	}

@@ -4,3 +4,4 @@
 examples/crud/crud
 examples/log/log
 test/unit/dumpblob/dumpblob
+test/unit/ecb/ecb

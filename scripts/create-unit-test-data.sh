@@ -183,4 +183,19 @@ echo "writing blob"
 echo "removing group account"
 lpass rm --sync=now groupAccount/
 sleep 6
+
+echo "creating 1 ECB encrypted ACCT"
+cd ecb
+go build
+cd ..
+id_nameecb=$(./ecb/ecb "$user1" "$passwd1")
+echo "$id_nameecb" > data/id-nameecb.txt
+
+echo "writing blob"
+./dumpblob/dumpblob "$user1" "$passwd1" | jq -j .Blob > data/blob-ecb.txt
+
+echo "removing ECB account"
+lpass rm --sync=now "$id_nameecb"
+sleep 6
+
 lpass logout -f

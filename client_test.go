@@ -356,6 +356,28 @@ var _ = Describe("Client", func() {
 							Expect(server.ReceivedRequests()).To(HaveLen(4))
 						})
 					})
+					Context("when an account is AES 256 ECB encrypted", func() {
+						BeforeEach(func() {
+							rsp = readFile("blob-ecb.txt")
+						})
+						It("decrypts", func() {
+							accts, err := client.Accounts(context.Background())
+							Expect(err).NotTo(HaveOccurred())
+							Expect(accts).To(ConsistOf(
+								&Account{
+									ID:       readFile("id-nameecb.txt"),
+									Name:     "nameECB",
+									Username: "user ECB",
+									Password: "password ECB",
+									URL:      "http://urlECB",
+									Group:    "groupECB",
+									Notes:    "notes ECB",
+								},
+							))
+							// /iterations.php, /login.php, /login_check.php, /getaccts.php
+							Expect(server.ReceivedRequests()).To(HaveLen(4))
+						})
+					})
 				})
 
 				Context("when successfully operating on a single account", func() {
