@@ -46,8 +46,8 @@ var _ = Describe("Log", func() {
 	AfterEach(func() {
 		Expect(err).NotTo(HaveOccurred())
 		lines := strings.Split(logs.String(), "\n")
-		Expect(lines[0]).To(MatchRegexp("^POST http://127.0.0.1:[0-9]{1,5}/iterations.php$"))
-		Expect(lines[1]).To(MatchRegexp("^POST http://127.0.0.1:[0-9]{1,5}/login.php$"))
+		Expect(lines[0]).To(MatchRegexp(`^POST http://127\.0\.0\.1:[0-9]{1,5}/iterations\.php$`))
+		Expect(lines[1]).To(MatchRegexp(`^POST http://127\.0\.0\.1:[0-9]{1,5}/login\.php$`))
 		server.Close()
 	})
 

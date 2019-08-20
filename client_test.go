@@ -475,6 +475,48 @@ var _ = Describe("Client", func() {
 					})
 				})
 
+				Context("when HTTP error response", func() {
+					var err error
+					var path, method string
+					BeforeEach(func() {
+						server.AppendHandlers(
+							ghttp.RespondWith(http.StatusInternalServerError, ""),
+						)
+					})
+					AfterEach(func() {
+						Expect(err).To(MatchError(MatchRegexp(
+							method + ` http://127\.0\.0\.1:[0-9]{1,5}` + path + `: 500 Internal Server Error$`)))
+					})
+					Describe("Add()", func() {
+						It("returns error including HTTP status code", func() {
+							_, err = client.Accounts(context.Background())
+							method = http.MethodGet
+							path = EndointGetAccts + `\?b64=1&hasplugin=1\.3\.3&mobile=1&requestsrc=cli`
+						})
+					})
+					Describe("Update()", func() {
+						It("returns error including HTTP status code", func() {
+							err = client.Update(context.Background(), acct)
+							method = http.MethodPost
+							path = EndpointShowWebsite
+						})
+					})
+					Describe("Delete()", func() {
+						It("returns error including HTTP status code", func() {
+							err = client.Delete(context.Background(), "fakeID")
+							method = http.MethodPost
+							path = EndpointShowWebsite
+						})
+					})
+					Describe("Logout()", func() {
+						It("returns error including HTTP status code", func() {
+							err = client.Delete(context.Background(), "fakeID")
+							method = http.MethodPost
+							path = EndpointShowWebsite
+						})
+					})
+				})
+
 				Context("when Client Logout()", func() {
 					BeforeEach(func() {
 						form = url.Values{}
