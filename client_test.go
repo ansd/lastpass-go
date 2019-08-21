@@ -97,6 +97,19 @@ var _ = Describe("Client", func() {
 			loginForm.Set("username", user)
 		})
 
+		Context("when username is empty", func() {
+			It("returns a descriptive error", func() {
+				_, err := NewClient(context.Background(), "", passwd, WithBaseURL(server.URL()))
+				Expect(err).To(MatchError("username must not be empty"))
+			})
+		})
+		Context("when password is empty", func() {
+			It("returns a descriptive error", func() {
+				_, err := NewClient(context.Background(), user, "", WithBaseURL(server.URL()))
+				Expect(err).To(MatchError("masterPassword must not be empty"))
+			})
+		})
+
 		Context("with 1 password iteration", func() {
 			BeforeEach(func() {
 				passwdIterations = "1"
@@ -181,17 +194,14 @@ var _ = Describe("Client", func() {
 						rsp = fmt.Sprintf("<response><error message=\"%s\" cause=\"%s\" email=\"%s\"/></response>",
 							msg, cause, user)
 					})
-					Describe("NewClient()", func() {
-						It("returns AuthenticationError", func() {
-							var err error
-							client, err = NewClient(context.Background(), user, passwd, WithBaseURL(server.URL()))
-							Expect(client).To(BeNil())
-							Expect(err).To(MatchError(fmt.Sprintf("%s: %s", cause, msg)))
-							_, ok := err.(*AuthenticationError)
-							Expect(ok).To(BeTrue())
-							// /iterations.php, /login.php
-							Expect(server.ReceivedRequests()).To(HaveLen(2))
-						})
+					It("returns AuthenticationError", func() {
+						client, err := NewClient(context.Background(), user, passwd, WithBaseURL(server.URL()))
+						Expect(client).To(BeNil())
+						Expect(err).To(MatchError(fmt.Sprintf("%s: %s", cause, msg)))
+						_, ok := err.(*AuthenticationError)
+						Expect(ok).To(BeTrue())
+						// /iterations.php, /login.php
+						Expect(server.ReceivedRequests()).To(HaveLen(2))
 					})
 				})
 				Context("due to missing out-of-band approval", func() {
@@ -212,25 +222,49 @@ var _ = Describe("Client", func() {
 						loginRetryForm.Set("outofbandrequest", "1")
 						loginRetryForm.Set("outofbandretry", "1")
 						loginRetryForm.Set("outofbandretryid", retryID)
-						for i := 0; i < MaxLoginRetries; i++ {
+					})
+					Context("until MaxLoginRetries is reached", func() {
+						JustBeforeEach(func() {
+							for i := 0; i < MaxLoginRetries; i++ {
+								server.AppendHandlers(
+									ghttp.CombineHandlers(
+										ghttp.VerifyRequest(http.MethodPost, EndpointLogin),
+										contentTypeVerifier,
+										ghttp.VerifyForm(loginRetryForm),
+										ghttp.RespondWith(http.StatusOK, rsp),
+									),
+								)
+							}
+						})
+						It("returns AuthenticationError", func() {
+							client, err := NewClient(context.Background(), user, passwd, WithBaseURL(server.URL()))
+							Expect(client).To(BeNil())
+							Expect(err).To(MatchError(MatchRegexp(`^didn't receive out-of-band approval within the last \d seconds$`)))
+							// /iterations.php, /login.php, MaxLoginRetries * /login/php
+							Expect(server.ReceivedRequests()).To(HaveLen(2 + MaxLoginRetries))
+						})
+					})
+					Context("when re-trying due to unknown error", func() {
+						var retryCause, retryMsg string
+						JustBeforeEach(func() {
+							retryMsg = "unknown"
+							retryCause = "some cause"
 							server.AppendHandlers(
 								ghttp.CombineHandlers(
 									ghttp.VerifyRequest(http.MethodPost, EndpointLogin),
 									contentTypeVerifier,
 									ghttp.VerifyForm(loginRetryForm),
-									ghttp.RespondWith(http.StatusOK, rsp),
+									ghttp.RespondWith(http.StatusOK,
+										fmt.Sprintf("<response><error message=\"%s\" cause=\"%s\"/></response>", retryMsg, retryCause)),
 								),
 							)
-						}
-					})
-					Describe("NewClient()", func() {
+						})
 						It("returns AuthenticationError", func() {
-							var err error
-							client, err = NewClient(context.Background(), user, passwd, WithBaseURL(server.URL()))
+							client, err := NewClient(context.Background(), user, passwd, WithBaseURL(server.URL()))
 							Expect(client).To(BeNil())
-							Expect(err).To(MatchError(MatchRegexp(`^didn't receive out-of-band approval within the last \d seconds$`)))
-							// /iterations.php, /login.php, MaxLoginRetries * /login/php
-							Expect(server.ReceivedRequests()).To(HaveLen(2 + MaxLoginRetries))
+							Expect(err).To(MatchError(fmt.Sprintf("%s: %s", retryCause, retryMsg)))
+							// /iterations.php, /login.php, /login/php
+							Expect(server.ReceivedRequests()).To(HaveLen(3))
 						})
 					})
 				})
@@ -463,36 +497,74 @@ var _ = Describe("Client", func() {
 
 							Describe("Add()", func() {
 								BeforeEach(func() {
-									rspMsg = "accountadded"
 									form.Set("aid", "0")
 								})
-								It("requests /show_website.php with aid=0 and sets account ID correctly", func() {
-									acct.ID = "ignored"
-									Expect(client.Add(context.Background(), acct)).To(Succeed())
-									Expect(acct.ID).To(Equal("test ID"))
+								Context("when server returns 'accountadded'", func() {
+									BeforeEach(func() {
+										rspMsg = "accountadded"
+									})
+									It("requests /show_website.php with aid=0 and sets account ID correctly", func() {
+										acct.ID = "ignored"
+										Expect(client.Add(context.Background(), acct)).To(Succeed())
+										Expect(acct.ID).To(Equal("test ID"))
+									})
+								})
+								Context("when server does not return 'accountadded'", func() {
+									BeforeEach(func() {
+										rspMsg = "not added"
+									})
+									It("returns a descriptive error", func() {
+										Expect(client.Add(context.Background(), acct)).To(MatchError("failed to add account"))
+									})
 								})
 							})
 							Describe("Update()", func() {
 								BeforeEach(func() {
-									rspMsg = "accountupdated"
 									form.Set("aid", acct.ID)
 								})
-								It("requests /show_website.php with correct aid", func() {
-									Expect(client.Update(context.Background(), acct)).To(Succeed())
+								Context("when server returns 'accountupdated'", func() {
+									BeforeEach(func() {
+										rspMsg = "accountupdated"
+									})
+									It("requests /show_website.php with correct aid", func() {
+										Expect(client.Update(context.Background(), acct)).To(Succeed())
+									})
+								})
+								Context("when server does not return 'accountupdated'", func() {
+									BeforeEach(func() {
+										rspMsg = "not updated"
+									})
+									It("returns a descriptive error", func() {
+										Expect(client.Update(context.Background(), acct)).To(MatchError(
+											fmt.Sprintf("failed to update account (ID=%s)", acct.ID)))
+									})
 								})
 							})
 						})
 						Describe("Delete()", func() {
 							BeforeEach(func() {
-								rspMsg = "accountdeleted"
 								form = url.Values{}
 								form.Set("delete", "1")
 								form.Set("extjs", "1")
 								form.Set("token", token)
 								form.Set("aid", acct.ID)
 							})
-							It("requests /show_website.php with correct aid and delete=1", func() {
-								Expect(client.Delete(context.Background(), acct.ID)).To(Succeed())
+							Context("when server returns 'accountdeleted'", func() {
+								BeforeEach(func() {
+									rspMsg = "accountdeleted"
+								})
+								It("requests /show_website.php with correct aid and delete=1", func() {
+									Expect(client.Delete(context.Background(), acct.ID)).To(Succeed())
+								})
+							})
+							Context("when server does not return 'accountdeleted'", func() {
+								BeforeEach(func() {
+									rspMsg = "not deleted"
+								})
+								It("returns a descriptive error", func() {
+									Expect(client.Delete(context.Background(), acct.ID)).To(MatchError(
+										fmt.Sprintf("failed to delete account (ID=%s)", acct.ID)))
+								})
 							})
 						})
 					})
@@ -623,6 +695,17 @@ var _ = Describe("Client", func() {
 					})
 					AssertUnauthenticatedBehavior()
 				})
+			})
+		})
+	})
+	Describe("Add()", func() {
+		Context("when account.Name is empty", func() {
+			BeforeEach(func() {
+				client = &Client{}
+				acct.Name = ""
+			})
+			It("returns a descriptive error", func() {
+				Expect(client.Add(context.Background(), acct)).To(MatchError("account.Name must not be empty"))
 			})
 		})
 	})

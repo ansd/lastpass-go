@@ -193,7 +193,7 @@ func (c *Client) Delete(ctx context.Context, accountID string) error {
 		return err
 	}
 	if response.Result.Msg != "accountdeleted" {
-		return errors.New("failed to delete account")
+		return fmt.Errorf("failed to delete account (ID=%s)", accountID)
 	}
 	return nil
 }
