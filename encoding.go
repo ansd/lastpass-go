@@ -18,6 +18,14 @@ import (
 	"github.com/ansd/lastpass-go/ecb"
 )
 
+// LastPass blob chunk is made up of 4-byte ID,
+// big endian 4-byte size and payload of that size.
+//
+// Example:
+//   0000: "IDID"
+//   0004: 4
+//   0008: 0xDE 0xAD 0xBE 0xEF
+//   000C: --- Next chunk ---
 func extractChunks(r io.Reader) ([]*chunk, error) {
 	chunks := make([]*chunk, 0)
 	for {

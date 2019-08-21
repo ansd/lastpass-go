@@ -219,6 +219,18 @@ var _ = Describe("Account", func() {
 					Expect(err).To(MatchError("blob is truncated"))
 				})
 			})
+			Context("when blob is truncated and therefore chunk cannot be extracted", func() {
+				BeforeEach(func() {
+					// 8 base64 digits (each 6 bit) = 48 bits = 6 bytes
+					// chunk contains 4-byte ID, 4-byte size and payload of that size
+					// therefore, the complete chunk cannot be read
+					rsp = "TFBBVgAA"
+				})
+				It("returns an EOF error", func() {
+					_, err := client.Accounts(context.Background())
+					Expect(err).To(MatchError("EOF"))
+				})
+			})
 		})
 		Context("when request gets canceled", func() {
 			var ctx context.Context
