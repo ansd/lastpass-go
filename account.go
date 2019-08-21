@@ -45,7 +45,7 @@ func (c *Client) Accounts(ctx context.Context) ([]*Account, error) {
 		return nil, &AuthenticationError{"client not logged in"}
 	}
 
-	endpoint := c.baseURL + EndointGetAccts
+	endpoint := c.baseURL + EndpointGetAccts
 	u, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, err

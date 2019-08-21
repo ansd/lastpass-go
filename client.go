@@ -18,9 +18,9 @@ const (
 	EndpointLogin       = "/login.php"
 	EndpointLoginCheck  = "/login_check.php"
 	EndpointIterations  = "/iterations.php"
-	EndointGetAccts     = "/getaccts.php"
+	EndpointGetAccts    = "/getaccts.php"
 	EndpointShowWebsite = "/show_website.php"
-	EndointLogout       = "/logout.php"
+	EndpointLogout      = "/logout.php"
 )
 
 // Client represents a LastPass client.
@@ -110,7 +110,7 @@ func (c *Client) Logout(ctx context.Context) error {
 		return nil
 	}
 
-	res, err := c.postForm(ctx, EndointLogout, url.Values{
+	res, err := c.postForm(ctx, EndpointLogout, url.Values{
 		"method":     []string{"cli"},
 		"noredirect": []string{"1"},
 		"token":      []string{c.session.token},
