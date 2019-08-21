@@ -239,9 +239,11 @@ var _ = Describe("Client", func() {
 			Context("when NewClient() succeeds", func() {
 				var form url.Values
 				const token = "fakeToken"
+				const otp = "654321"
 
 				BeforeEach(func() {
 					privateKeyEncrypted := readFile("privatekeyencrypted.txt")
+					loginForm.Set("otp", otp)
 
 					server.AppendHandlers(
 						ghttp.CombineHandlers(
@@ -253,7 +255,7 @@ var _ = Describe("Client", func() {
 						),
 					)
 					var err error
-					client, err = NewClient(context.Background(), user, passwd, WithBaseURL(server.URL()))
+					client, err = NewClient(context.Background(), user, passwd, WithOneTimePassword(otp), WithBaseURL(server.URL()))
 					Expect(err).NotTo(HaveOccurred())
 				})
 
