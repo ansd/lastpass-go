@@ -10,6 +10,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"strconv"
 
 	"golang.org/x/crypto/pbkdf2"
 )
@@ -21,6 +22,7 @@ type Response struct {
 }
 
 func NewClient() (*http.Client, *Response) {
+	var passwordIterations = flag.Int("iterations", 100100, "LastPass password iterations count")
 	flag.Parse()
 	args := flag.Args()
 	if len(args) != 2 {
@@ -40,15 +42,24 @@ func NewClient() (*http.Client, *Response) {
 		Jar: cookieJar,
 	}
 
-	encryptionKey := pbkdf2.Key([]byte(passwd), []byte(user), 100100, 32, sha256.New)
-	loginHash := hex.EncodeToString(pbkdf2.Key(encryptionKey, []byte(passwd), 1, 32, sha256.New))
+	var encryptionKey []byte
+	var loginHash string
+	if *passwordIterations == 1 {
+		key := sha256.Sum256([]byte(user + passwd))
+		encryptionKey = key[:]
+		b := sha256.Sum256([]byte(hex.EncodeToString(encryptionKey) + passwd))
+		loginHash = hex.EncodeToString(b[:])
+	} else {
+		encryptionKey = pbkdf2.Key([]byte(passwd), []byte(user), *passwordIterations, 32, sha256.New)
+		loginHash = hex.EncodeToString(pbkdf2.Key(encryptionKey, []byte(passwd), 1, 32, sha256.New))
+	}
 
 	form := url.Values{
 		"method":               []string{"cli"},
 		"xml":                  []string{"1"},
 		"username":             []string{user},
 		"hash":                 []string{loginHash},
-		"iterations":           []string{"100100"},
+		"iterations":           []string{strconv.Itoa(*passwordIterations)},
 		"includeprivatekeyenc": []string{"1"},
 	}
 	rsp, err := client.PostForm("https://lastpass.com/login.php", form)

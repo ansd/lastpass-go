@@ -198,4 +198,31 @@ echo "removing ECB account"
 lpass rm --sync=now "$id_nameecb"
 sleep 6
 
+echo "creating 1 ACCT"
+cat<<EOF | lpass add --non-interactive --sync=now name3
+URL: http://url3
+EOF
+sleep 6
+
+lpass logout -f
+
+read -p "Now, use the browser plugin of the 1st user's account.
+'Account Settings' => 'Show Advanced Settings' => Set 'Password Iterations' to '1' => 'Update'.
+Re-enter the 1st user's password => 'Confirm' and wait for the operation to complete.
+When done, press enter to continue."
+
+echo "$passwd1" | LPASS_DISABLE_PINENTRY=1 lpass login --force "$user1"
+
+id_name3=$(lpass show --id name3)
+echo "$id_name3" > data/id-name3.txt
+
+echo "writing blob"
+dump=$(./dumpblob/dumpblob --iterations=1 "$user1" "$passwd1")
+echo "$dump" | jq -j .PrivateKeyEncrypted > data/privatekeyencrypted-1iteration.txt
+echo "$dump" | jq -j .Blob > data/blob-1iteration.txt
+
+echo "removing 1 ACCT"
+lpass rm --sync=now "$id_name3"
+sleep 6
+
 lpass logout -f
