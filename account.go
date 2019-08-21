@@ -283,7 +283,7 @@ func parseShare(r io.Reader, encryptionKey []byte, privateKey *rsa.PrivateKey) (
 
 func areComplete(chunks []*chunk) bool {
 	if len(chunks) == 0 {
-		return true
+		return false
 	}
 	lastChunk := chunks[len(chunks)-1]
 	// ENDM = end marker

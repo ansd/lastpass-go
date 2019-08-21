@@ -2,6 +2,7 @@ package lastpass_test
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 
@@ -197,6 +198,25 @@ var _ = Describe("Account", func() {
 					))
 					// /iterations.php, /login.php, /login_check.php, /getaccts.php
 					Expect(server.ReceivedRequests()).To(HaveLen(4))
+				})
+			})
+			Context("when blob is not base 64 encoded", func() {
+				BeforeEach(func() {
+					rsp = "!! blob not base64 encoded !!"
+				})
+				It("returns base64.CorruptInputError", func() {
+					_, err := client.Accounts(context.Background())
+					_, ok := err.(base64.CorruptInputError)
+					Expect(ok).To(BeTrue())
+				})
+			})
+			Context("when blob is empty", func() {
+				BeforeEach(func() {
+					rsp = ""
+				})
+				It("returns a descriptive error", func() {
+					_, err := client.Accounts(context.Background())
+					Expect(err).To(MatchError("blob is truncated"))
 				})
 			})
 		})
