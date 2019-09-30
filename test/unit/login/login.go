@@ -15,12 +15,15 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
+// Response contains fields which got parsed from the response of the /login.php endpoint.
 type Response struct {
 	PrivateKeyEncrypted string `xml:"privatekeyenc,attr"`
 	Token               string `xml:"token,attr"`
 	EncryptionKey       []byte
 }
 
+// NewClient reads the executable's username and password arguments and authenticates with the LastPass servers.
+// It returns an http.Client with the cookie set returned by LastPass and a Response containing parsed fields from the /login.php response.
 func NewClient() (*http.Client, *Response) {
 	var passwordIterations = flag.Int("iterations", 100100, "LastPass password iterations count")
 	flag.Parse()

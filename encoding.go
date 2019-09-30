@@ -125,21 +125,19 @@ func encryptAESCBC(plaintext string, encryptionKey []byte) (string, error) {
 
 func decryptItem(data, encryptionKey []byte) (string, error) {
 	size := len(data)
+	if size == 0 {
+		return "", nil
+	}
 	size16 := size % 16
 	size64 := size % 64
 
 	switch {
-	case size == 0:
-		return "", nil
-
-	case data[0] == '!' && size16 == 1:
-		// AES 256 CBC plain encrypted
+	case aes256CBCPlain(data, size16):
 		data = data[1:]
 		iv, in := data[:aes.BlockSize], data[aes.BlockSize:]
 		return decryptAES256CBC(iv, in, encryptionKey)
 
-	case data[0] == '!' && data[25] == '|' && (size64 == 6 || size64 == 26 || size64 == 50):
-		// AES 256 CBC base 64 encrypted
+	case aes256CBCBase64(data, size64):
 		ivBase64 := data[1:25]
 		iv, err := decodeBase64(ivBase64)
 		if err != nil {
@@ -152,19 +150,31 @@ func decryptItem(data, encryptionKey []byte) (string, error) {
 		}
 		return decryptAES256CBC(iv, in, encryptionKey)
 
-	case size16 == 0:
-		// AES 256 ECB plain encrypted
+	case aes256ECBPlain(size16):
 		return decryptAES256ECB(data, encryptionKey)
 
-	case size64 == 0 || size64 == 24 || size64 == 44:
-		// AES 256 ECB base 64 encrypted
+	case aes256ECBBase64(size64):
 		data, err := decodeBase64(data)
 		if err != nil {
 			return "", err
 		}
 		return decryptAES256ECB(data, encryptionKey)
 	}
+
 	return "", errors.New("input doesn't seem to be AES-256 encrypted")
+}
+
+func aes256CBCPlain(data []byte, size16 int) bool {
+	return data[0] == '!' && size16 == 1
+}
+func aes256CBCBase64(data []byte, size64 int) bool {
+	return data[0] == '!' && data[25] == '|' && (size64 == 6 || size64 == 26 || size64 == 50)
+}
+func aes256ECBPlain(size16 int) bool {
+	return size16 == 0
+}
+func aes256ECBBase64(size64 int) bool {
+	return size64 == 0 || size64 == 24 || size64 == 44
 }
 
 // decrypt user's private key with user's encryption key

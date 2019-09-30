@@ -27,6 +27,16 @@ type Account struct {
 	Notes    string
 }
 
+type encryptedAccount struct {
+	id       string
+	name     []byte
+	username []byte
+	password []byte
+	url      []byte
+	group    []byte
+	notes    []byte
+}
+
 // the blob returned by the /getaccts.php endpoint is made up of chunks
 type chunk struct {
 	id      uint32
@@ -100,7 +110,11 @@ func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
 	for _, chunk := range chunks {
 		switch chunk.id {
 		case chunkIDFromString("ACCT"):
-			acct, err := parseAccount(bytes.NewReader(chunk.payload), key)
+			encryptedAccount, err := parseAccount(bytes.NewReader(chunk.payload))
+			if err != nil {
+				return nil, err
+			}
+			acct, err := decryptAccount(encryptedAccount, key)
 			if err != nil {
 				return nil, err
 			}
@@ -128,75 +142,78 @@ func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
 	return accts, nil
 }
 
-func parseAccount(r io.Reader, encryptionKey []byte) (*Account, error) {
-	acctID, err := readItem(r)
+func parseAccount(r io.Reader) (*encryptedAccount, error) {
+	id, err := readItem(r)
 	if err != nil {
 		return nil, err
 	}
-	id := string(acctID)
-
 	nameEncrypted, err := readItem(r)
 	if err != nil {
 		return nil, err
 	}
-	name, err := decryptItem(nameEncrypted, encryptionKey)
-	if err != nil {
-		return nil, err
-	}
-
 	groupEncrypted, err := readItem(r)
 	if err != nil {
 		return nil, err
 	}
-	group, err := decryptItem(groupEncrypted, encryptionKey)
-	if err != nil {
-		return nil, err
-	}
-
 	urlHexEncoded, err := readItem(r)
 	if err != nil {
 		return nil, err
 	}
-	url, err := decodeHex(urlHexEncoded)
-	if err != nil {
-		return nil, err
-	}
-
 	notesEncrypted, err := readItem(r)
 	if err != nil {
 		return nil, err
 	}
-	notes, err := decryptItem(notesEncrypted, encryptionKey)
-	if err != nil {
-		return nil, err
-	}
-
 	for i := 0; i < 2; i++ {
 		if err = skipItem(r); err != nil {
 			return nil, err
 		}
 	}
-
 	usernameEncrypted, err := readItem(r)
 	if err != nil {
 		return nil, err
 	}
-	username, err := decryptItem(usernameEncrypted, encryptionKey)
-	if err != nil {
-		return nil, err
-	}
-
 	passwordEncrypted, err := readItem(r)
 	if err != nil {
 		return nil, err
 	}
-	password, err := decryptItem(passwordEncrypted, encryptionKey)
+	return &encryptedAccount{
+		string(id),
+		nameEncrypted,
+		usernameEncrypted,
+		passwordEncrypted,
+		urlHexEncoded,
+		groupEncrypted,
+		notesEncrypted,
+	}, nil
+}
+
+func decryptAccount(encrypted *encryptedAccount, encryptionKey []byte) (*Account, error) {
+	name, err := decryptItem(encrypted.name, encryptionKey)
 	if err != nil {
 		return nil, err
 	}
-
+	username, err := decryptItem(encrypted.username, encryptionKey)
+	if err != nil {
+		return nil, err
+	}
+	password, err := decryptItem(encrypted.password, encryptionKey)
+	if err != nil {
+		return nil, err
+	}
+	url, err := decodeHex(encrypted.url)
+	if err != nil {
+		return nil, err
+	}
+	group, err := decryptItem(encrypted.group, encryptionKey)
+	if err != nil {
+		return nil, err
+	}
+	notes, err := decryptItem(encrypted.notes, encryptionKey)
+	if err != nil {
+		return nil, err
+	}
 	return &Account{
-		id,
+		encrypted.id,
 		name,
 		username,
 		password,
