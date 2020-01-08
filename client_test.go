@@ -75,14 +75,14 @@ var _ = Describe("Client", func() {
 		})
 	}
 
-	Context("when Client never logged in", func() {
+	When("Client never logged in", func() {
 		BeforeEach(func() {
 			client = &Client{}
 		})
 		AssertUnauthenticatedBehavior()
 	})
 
-	Context("when NewClient()", func() {
+	When("NewClient()", func() {
 		var loginForm url.Values
 		var user, passwd, passwdIterations string
 		contentTypeVerifier := ghttp.VerifyContentType("application/x-www-form-urlencoded")
@@ -97,13 +97,13 @@ var _ = Describe("Client", func() {
 			loginForm.Set("username", user)
 		})
 
-		Context("when username is empty", func() {
+		When("username is empty", func() {
 			It("returns a descriptive error", func() {
 				_, err := NewClient(context.Background(), "", passwd, WithBaseURL(server.URL()))
 				Expect(err).To(MatchError("username must not be empty"))
 			})
 		})
-		Context("when password is empty", func() {
+		When("password is empty", func() {
 			It("returns a descriptive error", func() {
 				_, err := NewClient(context.Background(), user, "", WithBaseURL(server.URL()))
 				Expect(err).To(MatchError("masterPassword must not be empty"))
@@ -173,7 +173,7 @@ var _ = Describe("Client", func() {
 				)
 			})
 
-			Context("when authentication fails", func() {
+			When("authentication fails", func() {
 				var cause string
 				var msg string
 				var rsp string
@@ -244,7 +244,7 @@ var _ = Describe("Client", func() {
 							Expect(server.ReceivedRequests()).To(HaveLen(2 + MaxLoginRetries))
 						})
 					})
-					Context("when re-trying due to unknown error", func() {
+					When("re-trying due to unknown error", func() {
 						var retryCause, retryMsg string
 						JustBeforeEach(func() {
 							retryMsg = "unknown"
@@ -270,7 +270,7 @@ var _ = Describe("Client", func() {
 				})
 			})
 
-			Context("when NewClient() succeeds", func() {
+			When("NewClient() succeeds", func() {
 				var form url.Values
 				const token = "fakeToken"
 				const otp = "654321"
@@ -298,7 +298,7 @@ var _ = Describe("Client", func() {
 						Expect(server.ReceivedRequests()).To(HaveLen(2))
 					})
 				})
-				Context("when session is live", func() {
+				When("session is live", func() {
 					rsp := `<response> <ok accts_version="111"/> </response>`
 					BeforeEach(func() {
 						server.AppendHandlers(
@@ -308,7 +308,7 @@ var _ = Describe("Client", func() {
 							),
 						)
 					})
-					Context("when successfully operating on a single account", func() {
+					When("successfully operating on a single account", func() {
 						var rspMsg string
 						JustBeforeEach(func() {
 							server.AppendHandlers(
@@ -327,7 +327,7 @@ var _ = Describe("Client", func() {
 							// /iterations.php, /login.php, /login_check.php, /show_website.php
 							Expect(server.ReceivedRequests()).To(HaveLen(4))
 						})
-						Context("when upserting", func() {
+						When("upserting", func() {
 							BeforeEach(func() {
 								form = url.Values{}
 								form.Set("method", "cli")
@@ -340,7 +340,7 @@ var _ = Describe("Client", func() {
 								BeforeEach(func() {
 									form.Set("aid", "0")
 								})
-								Context("when server returns 'accountadded'", func() {
+								When("server returns 'accountadded'", func() {
 									BeforeEach(func() {
 										rspMsg = "accountadded"
 									})
@@ -350,7 +350,7 @@ var _ = Describe("Client", func() {
 										Expect(acct.ID).To(Equal("test ID"))
 									})
 								})
-								Context("when server does not return 'accountadded'", func() {
+								When("server does not return 'accountadded'", func() {
 									BeforeEach(func() {
 										rspMsg = "not added"
 									})
@@ -363,7 +363,7 @@ var _ = Describe("Client", func() {
 								BeforeEach(func() {
 									form.Set("aid", acct.ID)
 								})
-								Context("when server returns 'accountupdated'", func() {
+								When("server returns 'accountupdated'", func() {
 									BeforeEach(func() {
 										rspMsg = "accountupdated"
 									})
@@ -371,7 +371,7 @@ var _ = Describe("Client", func() {
 										Expect(client.Update(context.Background(), acct)).To(Succeed())
 									})
 								})
-								Context("when server does not return 'accountupdated'", func() {
+								When("server does not return 'accountupdated'", func() {
 									BeforeEach(func() {
 										rspMsg = "not updated"
 									})
@@ -390,7 +390,7 @@ var _ = Describe("Client", func() {
 								form.Set("token", token)
 								form.Set("aid", acct.ID)
 							})
-							Context("when server returns 'accountdeleted'", func() {
+							When("server returns 'accountdeleted'", func() {
 								BeforeEach(func() {
 									rspMsg = "accountdeleted"
 								})
@@ -398,7 +398,7 @@ var _ = Describe("Client", func() {
 									Expect(client.Delete(context.Background(), acct.ID)).To(Succeed())
 								})
 							})
-							Context("when server does not return 'accountdeleted'", func() {
+							When("server does not return 'accountdeleted'", func() {
 								BeforeEach(func() {
 									rspMsg = "not deleted"
 								})
@@ -409,7 +409,7 @@ var _ = Describe("Client", func() {
 							})
 						})
 					})
-					Context("when account does not exist", func() {
+					When("account does not exist", func() {
 						BeforeEach(func() {
 							header := http.Header{}
 							header.Set("Content-Length", "0")
@@ -437,7 +437,7 @@ var _ = Describe("Client", func() {
 						})
 					})
 
-					Context("when HTTP error response", func() {
+					When("HTTP error response", func() {
 						var err error
 						var path string
 						BeforeEach(func() {
@@ -476,7 +476,7 @@ var _ = Describe("Client", func() {
 							})
 						})
 					})
-					Context("when Client Logout()", func() {
+					When("Client Logout()", func() {
 						BeforeEach(func() {
 							form = url.Values{}
 							form.Set("method", "cli")
@@ -499,7 +499,7 @@ var _ = Describe("Client", func() {
 						AssertUnauthenticatedBehavior()
 					})
 				})
-				Context("when session becomes dead (e.g. when session cookie expires)", func() {
+				When("session becomes dead (e.g. when session cookie expires)", func() {
 					rsp := `<?xml version="1.0" encoding="UTF-8"?>
 	<response>
 	<error silent="1" from="session is not live"/>
@@ -522,7 +522,7 @@ var _ = Describe("Client", func() {
 		})
 	})
 	Describe("Add()", func() {
-		Context("when account.Name is empty", func() {
+		When("account.Name is empty", func() {
 			BeforeEach(func() {
 				client = &Client{}
 				acct.Name = ""

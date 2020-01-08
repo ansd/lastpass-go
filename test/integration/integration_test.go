@@ -9,7 +9,7 @@ import (
 )
 
 var _ = Describe("Integration", func() {
-	Context("when account exists", func() {
+	When("account exists", func() {
 		var newAcct *Account
 
 		BeforeEach(func() {
@@ -68,7 +68,7 @@ var _ = Describe("Integration", func() {
 		})
 	})
 
-	Context("when accout does not exist", func() {
+	When("accout does not exist", func() {
 		id := "nonExistingID"
 		Describe("Update()", func() {
 			It("returns AccountNotFoundError", func() {

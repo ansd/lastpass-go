@@ -50,7 +50,7 @@ var _ = Describe("Account", func() {
 	})
 
 	Describe("Accounts()", func() {
-		Context("when server returns blob", func() {
+		When("server returns blob", func() {
 			var rsp string
 			JustBeforeEach(func() {
 				server.AppendHandlers(
@@ -61,7 +61,7 @@ var _ = Describe("Account", func() {
 					),
 				)
 			})
-			Context("when accounts including secure notes are returned", func() {
+			When("accounts including secure notes are returned", func() {
 				BeforeEach(func() {
 					rsp = readFile("blob-3accts.txt")
 				})
@@ -95,7 +95,7 @@ var _ = Describe("Account", func() {
 					Expect(server.ReceivedRequests()).To(HaveLen(4))
 				})
 			})
-			Context("when group accounts are returned", func() {
+			When("group accounts are returned", func() {
 				BeforeEach(func() {
 					rsp = readFile("blob-groupaccount.txt")
 				})
@@ -107,7 +107,7 @@ var _ = Describe("Account", func() {
 					Expect(server.ReceivedRequests()).To(HaveLen(4))
 				})
 			})
-			Context("when shared folders exist whose sharing key is AES encrypted with user's encryption key", func() {
+			When("shared folders exist whose sharing key is AES encrypted with user's encryption key", func() {
 				BeforeEach(func() {
 					rsp = readFile("blob-sharedaccounts.txt")
 				})
@@ -156,7 +156,7 @@ var _ = Describe("Account", func() {
 					Expect(server.ReceivedRequests()).To(HaveLen(4))
 				})
 			})
-			Context("when shared folder exists whose sharing key needs to be decrypted with user's RSA private key", func() {
+			When("shared folder exists whose sharing key needs to be decrypted with user's RSA private key", func() {
 				BeforeEach(func() {
 					rsp = readFile("blob-sharingkeyrsaencrypted.txt")
 				})
@@ -178,7 +178,7 @@ var _ = Describe("Account", func() {
 					Expect(server.ReceivedRequests()).To(HaveLen(4))
 				})
 			})
-			Context("when an account is AES 256 ECB encrypted", func() {
+			When("an account is AES 256 ECB encrypted", func() {
 				BeforeEach(func() {
 					rsp = readFile("blob-ecb.txt")
 				})
@@ -200,7 +200,7 @@ var _ = Describe("Account", func() {
 					Expect(server.ReceivedRequests()).To(HaveLen(4))
 				})
 			})
-			Context("when blob is not base 64 encoded", func() {
+			When("blob is not base 64 encoded", func() {
 				BeforeEach(func() {
 					rsp = "!! blob not base64 encoded !!"
 				})
@@ -210,7 +210,7 @@ var _ = Describe("Account", func() {
 					Expect(ok).To(BeTrue())
 				})
 			})
-			Context("when blob is empty", func() {
+			When("blob is empty", func() {
 				BeforeEach(func() {
 					rsp = ""
 				})
@@ -219,7 +219,7 @@ var _ = Describe("Account", func() {
 					Expect(err).To(MatchError("blob is truncated"))
 				})
 			})
-			Context("when blob is truncated and therefore chunk cannot be extracted", func() {
+			When("blob is truncated and therefore chunk cannot be extracted", func() {
 				BeforeEach(func() {
 					// 8 base64 digits (each 6 bit) = 48 bits = 6 bytes
 					// chunk contains 4-byte ID, 4-byte size and payload of that size
@@ -232,7 +232,7 @@ var _ = Describe("Account", func() {
 				})
 			})
 		})
-		Context("when request gets canceled", func() {
+		When("request gets canceled", func() {
 			var ctx context.Context
 			BeforeEach(func() {
 				var cancel context.CancelFunc
@@ -244,7 +244,7 @@ var _ = Describe("Account", func() {
 				Expect(err).To(MatchError(MatchRegexp("context canceled")))
 			})
 		})
-		Context("when HTTP error response", func() {
+		When("HTTP error response", func() {
 			BeforeEach(func() {
 				server.AppendHandlers(
 					ghttp.CombineHandlers(
