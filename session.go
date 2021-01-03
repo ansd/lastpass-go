@@ -69,6 +69,12 @@ func (c *Client) login(ctx context.Context, password string) error {
 		"iterations":           []string{fmt.Sprint(c.session.passwdIterations)},
 		"includeprivatekeyenc": []string{"1"},
 	}
+	if c.trustID != "" {
+		form.Set("uuid", c.trustID)
+	}
+	if c.trustLabel != "" {
+		form.Set("trustlabel", c.trustLabel)
+	}
 	if c.otp != "" {
 		form.Set("otp", c.otp)
 	}
@@ -124,6 +130,17 @@ func (c *Client) login(ctx context.Context, password string) error {
 
 	if rsp.Error.Cause != "" {
 		return &AuthenticationError{fmt.Sprintf("%s: %s", rsp.Error.Cause, rsp.Error.Msg)}
+	}
+
+	if c.trust {
+		trustForm := url.Values{
+			"token":      []string{rsp.Token},
+			"uuid":       []string{c.trustID},
+			"trustlabel": []string{c.trustLabel},
+		}
+		if _, err := c.postForm(ctx, EndpointTrust, trustForm); err != nil {
+			return err
+		}
 	}
 
 	c.session.token = rsp.Token

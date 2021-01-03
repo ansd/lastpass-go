@@ -5,10 +5,11 @@
 # Go client for LastPass
 
 ## Features
-- login via
+- login with
 	- user name and master password
 	- two-factor authentication with out-of-band mechanism such as push notification to LastPass Authenticator or Duo Security
 	- two-factor authentication with one-time password from LastPass Authenticator, Google Authenticator, Microsoft Authenticator, YubiKey, Duo Security, Sesame, etc.
+	- trust: after first successful login with two-factor authentication, the second factor can be skipped for 30 days
 - create account
 - read accounts (including accounts from shared folders)
 - update account
@@ -35,6 +36,7 @@ import "github.com/ansd/lastpass-go"
 ## Usage
 
 Below, error handling is excluded for brevity.
+
 See [examples](https://github.com/ansd/lastpass-go/tree/master/examples) directory for more examples.
 
 ```go

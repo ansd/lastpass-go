@@ -3,24 +3,35 @@ package lastpass
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 )
 
 // LastPass API endpoints used by this client.
 const (
 	EndpointLogin       = "/login.php"
+	EndpointTrust       = "/trust.php"
 	EndpointLoginCheck  = "/login_check.php"
 	EndpointIterations  = "/iterations.php"
 	EndpointGetAccts    = "/getaccts.php"
 	EndpointShowWebsite = "/show_website.php"
 	EndpointLogout      = "/logout.php"
+)
+
+const (
+	fileTrustID           = "trusted_id"
+	allowedCharsInTrustID = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$"
 )
 
 // Client represents a LastPass client.
@@ -33,6 +44,10 @@ type Client struct {
 	baseURL       string
 	otp           string
 	logger        Logger
+	configDir     string
+	trust         bool
+	trustID       string
+	trustLabel    string
 }
 
 // ClientOption is the type of constructor options for NewClient(...).
@@ -70,6 +85,15 @@ func NewClient(ctx context.Context, username, masterPassword string, opts ...Cli
 	for _, opt := range opts {
 		opt(c)
 	}
+	if err := c.setConfigDir(); err != nil {
+		return nil, err
+	}
+	if err = c.calculateTrustID(ctx); err != nil {
+		return nil, err
+	}
+	if err = c.calculateTrustLabel(); err != nil {
+		return nil, err
+	}
 	if err = c.initSession(ctx, masterPassword); err != nil {
 		return nil, err
 	}
@@ -97,6 +121,27 @@ func WithBaseURL(baseURL string) ClientOption {
 func WithLogger(logger Logger) ClientOption {
 	return func(c *Client) {
 		c.logger = logger
+	}
+}
+
+// WithConfigDir sets the path of this library's cofiguration directory to persist user specific configuration.
+// If this option is not specified, the configuration directory defaults to <default-config-root-directory>/lastpass-go
+// where <default-config-root-direcotry> is the path returned by method UserConfigDir, see https://golang.org/pkg/os/#UserConfigDir.
+// The only user specific configuration currently supported by this library is a file called `trusted_id`.
+func WithConfigDir(path string) ClientOption {
+	return func(c *Client) {
+		c.configDir = path
+	}
+}
+
+// WithTrust will cause subsequent logins to not require multifactor authentication.
+// It behaves like the `lpass login --trust` option of the LastPass CLI.
+// If not already present, it will create a file `trusted_id` with a random trust ID in the configuration directory set by WithConfigDir.
+// It will create a trust label with the format `<hostname> <operating system name> lastpass-go` which will show up in the LastPass
+// Web Browser Extension under Account Settings => Trusted Devices.
+func WithTrust() ClientOption {
+	return func(c *Client) {
+		c.trust = true
 	}
 }
 
@@ -293,7 +338,7 @@ func (c *Client) postForm(ctx context.Context, path string, data url.Values) (*h
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(ctx)
-	log(ctx, c, "%s %s\n", req.Method, req.URL)
+	c.log(ctx, "%s %s\n", req.Method, req.URL)
 	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -302,4 +347,80 @@ func (c *Client) postForm(ctx context.Context, path string, data url.Values) (*h
 		return nil, fmt.Errorf("POST %s%s: %s", c.baseURL, path, res.Status)
 	}
 	return res, nil
+}
+
+func (c *Client) setConfigDir() error {
+	if c.configDir != "" {
+		// user provided config dir
+		return nil
+	}
+	// set default config dir
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return err
+	}
+	c.configDir = filepath.Join(dir, "lastpass-go")
+	return nil
+}
+
+func (c *Client) calculateTrustLabel() error {
+	if c.trust {
+		hostname, err := os.Hostname()
+		if err != nil {
+			return err
+		}
+		c.trustLabel = fmt.Sprintf("%s %s %s", hostname, runtime.GOOS, "lastpass-go")
+	}
+	return nil
+}
+
+// calculateTrustID implements
+// https://github.com/lastpass/lastpass-cli/blob/8767b5e53192ad4e72d1352db4aa9218e928cbe1/endpoints-login.c#L105-L118
+func (c *Client) calculateTrustID(ctx context.Context) error {
+	pathTrustID := filepath.Join(c.configDir, fileTrustID)
+
+	_, err := os.Stat(pathTrustID)
+	if err == nil {
+		// file exists
+		data, err := ioutil.ReadFile(pathTrustID)
+		if err != nil {
+			return err
+		}
+		c.trustID = string(data)
+		return nil
+	}
+
+	if os.IsNotExist(err) {
+		// file does not exist
+		if c.trust {
+			// create file with a new random trust ID
+			trustID, err := random(32)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(c.configDir, 0700); err != nil {
+				return err
+			}
+			if err := ioutil.WriteFile(pathTrustID, trustID, 0600); err != nil {
+				return err
+			}
+			c.log(ctx, "wrote random trust ID to %s\n", pathTrustID)
+			c.trustID = string(trustID)
+		}
+		return nil
+	}
+
+	// file may or may not exist
+	return err
+}
+
+func random(length int) ([]byte, error) {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return nil, err
+	}
+	for i, b := range bytes {
+		bytes[i] = allowedCharsInTrustID[b%byte(len(allowedCharsInTrustID))]
+	}
+	return bytes, nil
 }

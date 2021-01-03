@@ -18,7 +18,7 @@ func NewContextWithLogger(ctx context.Context, logger Logger) context.Context {
 	return context.WithValue(ctx, loggerKey, logger)
 }
 
-func log(ctx context.Context, c *Client, format string, v ...interface{}) {
+func (c *Client) log(ctx context.Context, format string, v ...interface{}) {
 	if logger, ok := ctx.Value(loggerKey).(Logger); ok {
 		logger.Printf(format, v...)
 	}

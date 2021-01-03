@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	// read LastPass username and master password from file
+	// Read LastPass username and master password from file.
 	b, err := ioutil.ReadFile("../credentials.txt")
 	if err != nil {
 		log.Fatalln(err)
@@ -21,9 +21,8 @@ func main() {
 	username := lines[0]
 	masterPassword := lines[1]
 
-	// NewClient() authenticates with LastPass servers
-	// check the examples at https://godoc.org/github.com/ansd/lastpass-go#NewClient
-	// for two-factor authentication
+	// NewClient() authenticates with LastPass servers.
+	// Read examples at https://pkg.go.dev/github.com/ansd/lastpass-go#NewClient for two-factor authentication.
 	client, err := lastpass.NewClient(context.Background(), username, masterPassword)
 	if err != nil {
 		log.Fatalln(err)

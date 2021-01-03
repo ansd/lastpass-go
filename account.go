@@ -71,7 +71,7 @@ func (c *Client) Accounts(ctx context.Context) ([]*Account, error) {
 		return nil, err
 	}
 	req = req.WithContext(ctx)
-	log(ctx, c, "%s %s\n", req.Method, req.URL)
+	c.log(ctx, "%s %s\n", req.Method, req.URL)
 	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err

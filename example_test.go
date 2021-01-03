@@ -41,7 +41,23 @@ func ExampleNewClient_outOfBandAuthentication() {
 // NewClient returns an error of type *AuthenticationError.
 func ExampleNewClient_oneTimePasswordAuthentication() {
 	_, _ = lastpass.NewClient(context.Background(), "user name", "master password",
-		lastpass.WithOneTimePassword("123456"))
+		lastpass.WithOneTimePassword("123456"),
+	)
+}
+
+// Login with two-factor authentication and trust:
+//
+// The WithTrust option will cause subsequent logins to not require multifactor authentication.
+// It will create a trust label with the format `<hostname> <operating system name> lastpass-go`
+// which will show up in the LastPass account under Account Settings => Trusted Devices.
+func ExampleNewClient_trust() {
+	// On first login, the 2nd factor must be provided.
+	_, _ = lastpass.NewClient(context.Background(), "user name", "master password",
+		lastpass.WithOneTimePassword("123456"),
+		lastpass.WithTrust(),
+	)
+	// Thereafter, within the next 30 days, the 2nd factor can be omitted.
+	_, _ = lastpass.NewClient(context.Background(), "user name", "master password")
 }
 
 // WithLogger enables logging for all methods on lastpass.Client.
