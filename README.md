@@ -1,7 +1,6 @@
 [![Documentation](https://godoc.org/github.com/ansd/lastpass-go?status.svg)](https://pkg.go.dev/github.com/ansd/lastpass-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ansd/lastpass-go)](https://goreportcard.com/report/github.com/ansd/lastpass-go)
-[![Coverage Status](https://coveralls.io/repos/github/ansd/lastpass-go/badge.svg?branch=master&refresh=1)](https://coveralls.io/github/ansd/lastpass-go?branch=master)
-[![Build Status](https://www.travis-ci.com/ansd/lastpass-go.svg?branch=master)](https://www.travis-ci.com/ansd/lastpass-go)
+[![Test](https://github.com/ansd/lastpass-go/workflows/Test/badge.svg)](https://github.com/ansd/lastpass-go/actions?query=workflow%3Test)
 # Go client for LastPass
 
 ## Features
