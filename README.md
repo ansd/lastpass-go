@@ -1,6 +1,6 @@
 [![Documentation](https://godoc.org/github.com/ansd/lastpass-go?status.svg)](https://pkg.go.dev/github.com/ansd/lastpass-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ansd/lastpass-go)](https://goreportcard.com/report/github.com/ansd/lastpass-go)
-[![Test](https://github.com/ansd/lastpass-go/workflows/Test/badge.svg)](https://github.com/ansd/lastpass-go/actions?query=workflow%3Test)
+![Test](https://github.com/ansd/lastpass-go/workflows/Test/badge.svg)
 # Go client for LastPass
 
 ## Features
