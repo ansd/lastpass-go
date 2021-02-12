@@ -8,7 +8,7 @@
 	- user name and master password
 	- two-factor authentication with out-of-band mechanism such as push notification to LastPass Authenticator or Duo Security
 	- two-factor authentication with one-time password from LastPass Authenticator, Google Authenticator, Microsoft Authenticator, YubiKey, Duo Security, Sesame, etc.
-	- trust: after first successful login with two-factor authentication, the second factor can be skipped for 30 days
+	- trust: after first successful login with two-factor authentication, the second factor can be skipped
 - create account
 - read accounts (including accounts from shared folders)
 - update account

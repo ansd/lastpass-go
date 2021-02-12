@@ -49,7 +49,7 @@ func ExampleNewClient_oneTimePasswordAuthentication() {
 //
 // The WithTrust option will cause subsequent logins to not require multifactor authentication.
 // It will create a trust label with the format `<hostname> <operating system name> lastpass-go`
-// which will show up in the LastPass account under Account Settings => Trusted Devices.
+// which will show up in the LastPass Web Browser Extension under Account Settings => Trusted Devices.
 func ExampleNewClient_trust() {
 	// On first login, the 2nd factor must be provided.
 	_, _ = lastpass.NewClient(context.Background(), "user name", "master password",
@@ -57,6 +57,8 @@ func ExampleNewClient_trust() {
 		lastpass.WithTrust(),
 	)
 	// Thereafter, within the next 30 days, the 2nd factor can be omitted.
+	// (If you want to disable the default limit of 30 days, in the LastPass Web Browser Extension select the checkbox
+	// Account Settings => General => Show Advanced Settings => Don't end trust period after 30 days.)
 	_, _ = lastpass.NewClient(context.Background(), "user name", "master password")
 }
 

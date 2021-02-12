@@ -50,6 +50,8 @@ func main() {
 
 	// On 1st login using WithTrust(), a file `$HOME/.lastpass-go/trusted_id` is created.
 	// This file contains a randomly generated trust ID which will replace the 2nd factor (one-time password) for the next 30 days.
+	// (If you want to disable the default limit of 30 days, in the LastPass Web Browser Extension select the checkbox
+	// Account Settings => General => Show Advanced Settings => Don't end trust period after 30 days.)
 	// Additionally, a trust label with the format `<hostname> <operating system name> lastpass-go` will show up in the LastPass
 	// Web Browser Extension under Account Settings => Trusted Devices.
 
