@@ -2,9 +2,7 @@ package integration_test
 
 import (
 	"context"
-	"io/ioutil"
-	"log"
-	"strings"
+	"os"
 	"testing"
 
 	"github.com/ansd/lastpass-go"
@@ -20,15 +18,13 @@ func TestIntegration(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	b, err := ioutil.ReadFile("credentials.txt")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	lines := strings.Split(string(b), "\n")
-	username := lines[0]
-	password := lines[1]
+	username := os.Getenv("LASTPASS_USERNAME")
+	Expect(username).NotTo(BeEmpty())
+	passwd := os.Getenv("LASTPASS_MASTER_PASSWORD")
+	Expect(passwd).NotTo(BeEmpty())
 
-	client, err = lastpass.NewClient(context.Background(), username, password)
+	var err error
+	client, err = lastpass.NewClient(context.Background(), username, passwd)
 	Expect(err).NotTo(HaveOccurred())
 })
 
