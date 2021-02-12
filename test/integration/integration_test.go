@@ -10,10 +10,10 @@ import (
 
 var _ = Describe("Integration", func() {
 	When("account exists", func() {
-		var newAcct *Account
+		var account *Account
 
 		BeforeEach(func() {
-			newAcct = &Account{
+			account = &Account{
 				ID:       "",
 				Name:     "test site",
 				Username: "test user",
@@ -22,58 +22,48 @@ var _ = Describe("Integration", func() {
 				Group:    "test group",
 				Notes:    "test notes",
 			}
-			Expect(client.Add(context.Background(), newAcct)).To(Succeed())
+			Expect(client.Add(context.Background(), account)).To(Succeed())
 		})
 
 		AfterEach(func() {
-			Expect(client.Delete(context.Background(), newAcct.ID)).To(Succeed())
+			Expect(client.Delete(context.Background(), account.ID)).To(Succeed())
 		})
 
 		Describe("Add()", func() {
-			It("adds the account", func() {
-				acct, err := accountForID(client, newAcct.ID)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(acct).To(Equal(newAcct))
+			It("adds account", func() {
+				Expect(accountForID(client, account.ID)).To(Equal(account))
 			})
 		})
 
 		Describe("Accounts()", func() {
 			It("lists accounts", func() {
-				accts, err := client.Accounts(context.Background())
-				Expect(err).NotTo(HaveOccurred())
-				Expect(accts).To(ContainElement(newAcct))
+				Expect(client.Accounts(context.Background())).To(ContainElement(account))
 			})
 		})
 
 		Describe("Update()", func() {
-			It("updates the account", func() {
-				newAcct.Username = "updated user"
-				newAcct.Password = "updated pwd"
-				Expect(client.Update(context.Background(), newAcct)).To(Succeed())
-
-				acct, err := accountForID(client, newAcct.ID)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(acct).To(Equal(newAcct))
+			It("updates account", func() {
+				account.Username = "updated user"
+				account.Password = "updated pwd"
+				Expect(client.Update(context.Background(), account)).To(Succeed())
+				Expect(accountForID(client, account.ID)).To(Equal(account))
 			})
 		})
 
 		Describe("Delete()", func() {
-			It("deletes the account", func() {
-				Expect(client.Delete(context.Background(), newAcct.ID)).To(Succeed())
-
-				acct, err := accountForID(client, newAcct.ID)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(acct).To(BeNil())
+			It("deletes account", func() {
+				Expect(client.Delete(context.Background(), account.ID)).To(Succeed())
+				Expect(accountForID(client, account.ID)).To(BeNil())
 			})
 		})
 	})
 
 	When("accout does not exist", func() {
-		id := "nonExistingID"
+		const id string = "nonExistingID"
 		Describe("Update()", func() {
 			It("returns AccountNotFoundError", func() {
-				acct := &Account{ID: id}
-				Expect(client.Update(context.Background(), acct)).To(MatchError(&AccountNotFoundError{ID: id}))
+				account := &Account{ID: id}
+				Expect(client.Update(context.Background(), account)).To(MatchError(&AccountNotFoundError{ID: id}))
 			})
 		})
 
@@ -85,15 +75,13 @@ var _ = Describe("Integration", func() {
 	})
 })
 
-func accountForID(c *Client, accountID string) (*Account, error) {
-	accts, err := c.Accounts(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	for _, acct := range accts {
-		if acct.ID == accountID {
-			return acct, nil
+func accountForID(c *Client, accountID string) *Account {
+	accounts, err := c.Accounts(context.Background())
+	Expect(err).NotTo(HaveOccurred())
+	for _, a := range accounts {
+		if a.ID == accountID {
+			return a
 		}
 	}
-	return nil, nil
+	return nil
 }

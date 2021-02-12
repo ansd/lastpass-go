@@ -34,4 +34,5 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	Expect(client.Logout(context.Background())).To(Succeed())
+	Expect(client.Delete(context.Background(), "ignored ID")).To(MatchError("client not logged in"))
 })
