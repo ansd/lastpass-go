@@ -1,0 +1,17 @@
+version: 2
+updates:
+- package-ecosystem: gomod
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "17:00"
+  pull-request-branch-name:
+    separator: "-"
+  open-pull-requests-limit: 10
+  reviewers:
+  - ansd
+  ignore:
+  - dependency-name: github.com/onsi/ginkgo
+    versions:
+    - 1.15.1
+    - 1.16.0
