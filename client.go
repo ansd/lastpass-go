@@ -126,7 +126,7 @@ func WithLogger(logger Logger) ClientOption {
 
 // WithConfigDir sets the path of this library's cofiguration directory to persist user specific configuration.
 // If this option is not specified, the configuration directory defaults to <default-config-root-directory>/lastpass-go
-// where <default-config-root-direcotry> is the path returned by method UserConfigDir, see https://golang.org/pkg/os/#UserConfigDir.
+// where <default-config-root-directory> is the path returned by method UserConfigDir, see https://golang.org/pkg/os/#UserConfigDir.
 // The only user specific configuration currently supported by this library is a file called `trusted_id`.
 func WithConfigDir(path string) ClientOption {
 	return func(c *Client) {

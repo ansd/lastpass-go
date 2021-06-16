@@ -1,5 +1,6 @@
 **/credentials.txt
 **/.envrc
+*.pdf
 
 # executables
 examples/crud/crud
