@@ -66,7 +66,7 @@ var _ = Describe("Client", func() {
 		})
 		Describe("Delete()", func() {
 			It("returns AuthenticationError", func() {
-				err := client.Delete(context.Background(), acct.ID)
+				err := client.Delete(context.Background(), acct)
 				_, ok := err.(*AuthenticationError)
 				Expect(ok).To(BeTrue())
 			})
@@ -528,7 +528,7 @@ var _ = Describe("Client", func() {
 										rspMsg = "accountdeleted"
 									})
 									It("requests /show_website.php with correct aid and delete=1", func() {
-										Expect(client.Delete(context.Background(), acct.ID)).To(Succeed())
+										Expect(client.Delete(context.Background(), acct)).To(Succeed())
 									})
 								})
 								When("server does not return 'accountdeleted'", func() {
@@ -536,7 +536,7 @@ var _ = Describe("Client", func() {
 										rspMsg = "not deleted"
 									})
 									It("returns a descriptive error", func() {
-										Expect(client.Delete(context.Background(), acct.ID)).To(MatchError(
+										Expect(client.Delete(context.Background(), acct)).To(MatchError(
 											fmt.Sprintf("failed to delete account (ID=%s)", acct.ID)))
 									})
 								})
@@ -564,8 +564,9 @@ var _ = Describe("Client", func() {
 							})
 							Describe("Delete()", func() {
 								It("returns AccountNotFoundError", func() {
-									id := "notExisting"
-									Expect(client.Delete(context.Background(), id)).To(MatchError(&AccountNotFoundError{id}))
+									acct := &Account{ID: "notExisting"}
+									Expect(client.Delete(context.Background(), acct)).To(
+										MatchError(&AccountNotFoundError{acct.ID}))
 								})
 							})
 						})
@@ -598,7 +599,7 @@ var _ = Describe("Client", func() {
 								})
 								Describe("Delete()", func() {
 									It("returns error including HTTP status code", func() {
-										err = client.Delete(context.Background(), "fakeID")
+										err = client.Delete(context.Background(), &Account{ID: "fakeID"})
 									})
 								})
 							})

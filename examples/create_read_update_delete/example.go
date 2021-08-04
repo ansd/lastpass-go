@@ -61,7 +61,7 @@ func main() {
 	}
 
 	// Delete() account
-	if err = client.Delete(context.Background(), account.ID); err != nil {
+	if err = client.Delete(context.Background(), account); err != nil {
 		log.Fatalln(err)
 	}
 

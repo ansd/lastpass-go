@@ -13,6 +13,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 )
 
 // Account represents a LastPass item.
@@ -24,7 +26,11 @@ type Account struct {
 	Password string
 	URL      string
 	Group    string
-	Notes    string
+	// Shared folder name.
+	// If non-empty, it must have prefix "Shared-".
+	// Empty means this Account is not in a shared folder.
+	Share string
+	Notes string
 	// Timestamp in seconds (set by LastPass servers).
 	LastModifiedGMT string
 	LastTouch       string
@@ -40,6 +46,16 @@ type encryptedAccount struct {
 	notes           []byte
 	lastModifiedGMT string
 	lastTouch       string
+}
+
+// share represents a LastPass shared folder.
+type share struct {
+	id   string
+	name string
+	// Account fields within a shared folder are encrypted with this sharing key.
+	key []byte
+	// true if the shared folder admin marked shared folder as read-only for our user
+	readOnly bool
 }
 
 // the blob returned by the /getaccts.php endpoint is made up of chunks
@@ -59,7 +75,14 @@ func (c *Client) Accounts(ctx context.Context) ([]*Account, error) {
 	if !loggedIn {
 		return nil, &AuthenticationError{"client not logged in"}
 	}
+	blob, err := c.fetchBlob(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return c.parseBlob(bytes.NewReader(blob))
+}
 
+func (c *Client) fetchBlob(ctx context.Context) ([]byte, error) {
 	endpoint := c.baseURL + EndpointGetAccts
 	u, err := url.Parse(endpoint)
 	if err != nil {
@@ -91,26 +114,18 @@ func (c *Client) Accounts(ctx context.Context) ([]*Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	blob, err := decodeBase64(blobBase64)
-	if err != nil {
-		return nil, err
-	}
-	return c.parseBlob(bytes.NewReader(blob))
+	return decodeBase64(blobBase64)
 }
 
 func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
-	chunks, err := extractChunks(r)
+	chunks, err := c.getCompleteChunks(r)
 	if err != nil {
 		return nil, err
-	}
-
-	if !areComplete(chunks) {
-		return nil, errors.New("blob is truncated")
 	}
 
 	accts := make([]*Account, 0)
 	key := c.encryptionKey
-	shareName := ""
+	var share share
 
 	for _, chunk := range chunks {
 		switch chunk.id {
@@ -127,24 +142,34 @@ func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
 				// ignore "group" accounts since they are made up by LastPass and have no credentials
 				continue
 			}
-			if acct.Group == "" && shareName != "" {
-				// this is an account in a shared folder
-				acct.Group = shareName
-			}
+			acct.Share = share.name
 			accts = append(accts, acct)
 
 		case chunkIDFromString("SHAR"):
-			// after SHAR chunk all the following ACCTs are enrypted with the SHAR's sharing key
-			shareName, key, err = parseShare(bytes.NewReader(chunk.payload), c.encryptionKey, c.session.privateKey)
+			share, err = parseShare(bytes.NewReader(chunk.payload), c.encryptionKey, c.session.privateKey)
 			if err != nil {
 				return nil, err
 			}
+			// after SHAR chunk all the following ACCTs are enrypted with the SHAR's sharing key
+			key = share.key
 		default:
 			// the blob contains many other chunks we're currently not interested in
 			// see https://github.com/lastpass/lastpass-cli/blob/a84aa9629957033082c5930968dda7fbed751dfa/blob.c#L585-L676
 		}
 	}
 	return accts, nil
+}
+
+func (c *Client) getCompleteChunks(r io.Reader) ([]*chunk, error) {
+	chunks, err := extractChunks(r)
+	if err != nil {
+		return nil, err
+	}
+
+	if !areComplete(chunks) {
+		return nil, errors.New("blob is truncated")
+	}
+	return chunks, nil
 }
 
 // see https://github.com/lastpass/lastpass-cli/blob/8767b5e53192ad4e72d1352db4aa9218e928cbe1/blob.c#L356-L421
@@ -245,52 +270,55 @@ func decryptAccount(encrypted *encryptedAccount, encryptionKey []byte) (*Account
 		password,
 		string(url),
 		group,
+		"",
 		notes,
 		encrypted.lastModifiedGMT,
 		encrypted.lastTouch,
 	}, nil
 }
 
-func parseShare(r io.Reader, encryptionKey []byte, privateKey *rsa.PrivateKey) (
-	name string, sharingKey []byte, err error) {
-
-	// skip ID
-	if err = skipItem(r); err != nil {
-		return "", nil, err
+func parseShare(r io.Reader, encryptionKey []byte, privateKey *rsa.PrivateKey) (share, error) {
+	shareID, err := readItem(r)
+	if err != nil {
+		return share{}, err
 	}
 
 	sharingKeyRSAEncryptedHex, err := readItem(r)
 	if err != nil {
-		return "", nil, err
+		return share{}, err
 	}
 
 	nameEncrypted, err := readItem(r)
 	if err != nil {
-		return "", nil, err
+		return share{}, err
 	}
 
-	for i := 0; i < 2; i++ {
-		if err = skipItem(r); err != nil {
-			return "", nil, err
-		}
+	readOnly, err := readItem(r)
+	if err != nil {
+		return share{}, err
+	}
+
+	if err = skipItem(r); err != nil {
+		return share{}, err
 	}
 
 	sharingKeyAESEncrypted, err := readItem(r)
 	if err != nil {
-		return "", nil, err
+		return share{}, err
 	}
 
+	var sharingKey []byte
 	if len(sharingKeyAESEncrypted) > 0 {
 		// The sharing key is only AES encrypted with the regular encryption key.
 		// The is the default case and happens after the user had already decrypted
 		// the sharing key with their private key once before (possibly in some other LastPass client).
 		key, err := decryptItem(sharingKeyAESEncrypted, encryptionKey)
 		if err != nil {
-			return "", nil, err
+			return share{}, err
 		}
 		sharingKey, err = hex.DecodeString(key)
 		if err != nil {
-			return "", nil, err
+			return share{}, err
 		}
 
 	} else {
@@ -299,7 +327,7 @@ func parseShare(r io.Reader, encryptionKey []byte, privateKey *rsa.PrivateKey) (
 
 		sharingKeyRSAEncrypted, err := decodeHex(sharingKeyRSAEncryptedHex)
 		if err != nil {
-			return "", nil, err
+			return share{}, err
 		}
 
 		key, err := privateKey.Decrypt(rand.Reader, sharingKeyRSAEncrypted, &rsa.OAEPOptions{
@@ -309,21 +337,32 @@ func parseShare(r io.Reader, encryptionKey []byte, privateKey *rsa.PrivateKey) (
 			Hash: crypto.SHA1,
 		})
 		if err != nil {
-			return "", nil, err
+			return share{}, err
 		}
 
 		sharingKey, err = decodeHex(key)
 		if err != nil {
-			return "", nil, err
+			return share{}, err
 		}
 	}
 
-	name, err = decryptItem(nameEncrypted, sharingKey)
+	name, err := decryptItem(nameEncrypted, sharingKey)
 	if err != nil {
-		return "", nil, err
+		return share{}, err
 	}
 
-	return name, sharingKey, nil
+	// convert "0" to false and "1" to true
+	readOnlyBool, err := strconv.ParseBool(string(readOnly))
+	if err != nil {
+		return share{}, err
+	}
+
+	return share{
+		id:       string(shareID),
+		name:     name,
+		key:      sharingKey,
+		readOnly: readOnlyBool,
+	}, nil
 }
 
 func areComplete(chunks []*chunk) bool {
@@ -334,4 +373,31 @@ func areComplete(chunks []*chunk) bool {
 	// ENDM = end marker
 	return lastChunk.id == chunkIDFromString("ENDM") &&
 		string(lastChunk.payload) == "OK"
+}
+
+func (c *Client) getShare(ctx context.Context, shareName string) (share, error) {
+	blob, err := c.fetchBlob(ctx)
+	if err != nil {
+		return share{}, err
+	}
+	chunks, err := c.getCompleteChunks(bytes.NewReader(blob))
+	if err != nil {
+		return share{}, err
+	}
+	for _, chunk := range chunks {
+		if chunk.id == chunkIDFromString("SHAR") {
+			share, err := parseShare(bytes.NewReader(chunk.payload), c.encryptionKey, c.session.privateKey)
+			if err != nil {
+				return share, err
+			}
+			if share.name == shareName {
+				return share, nil
+			}
+		}
+	}
+	return share{}, fmt.Errorf("shared folder %s not found", shareName)
+}
+
+func (a *Account) isShared() bool {
+	return strings.HasPrefix(a.Share, "Shared-")
 }

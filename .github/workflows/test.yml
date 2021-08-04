@@ -19,5 +19,9 @@ jobs:
     - name: Integration Test
       run: cd test/integration && go test .
       env:
-        LASTPASS_USERNAME: ${{ secrets.LASTPASS_USER }}
-        LASTPASS_MASTER_PASSWORD: ${{ secrets.LASTPASS_PASSWORD }}
+        LASTPASS_USERNAME_1: ${{ secrets.LASTPASS_USERNAME_1 }}
+        LASTPASS_MASTER_PASSWORD_1: ${{ secrets.LASTPASS_MASTER_PASSWORD_1 }}
+        LASTPASS_USERNAME_2: ${{ secrets.LASTPASS_USERNAME_2 }}
+        LASTPASS_MASTER_PASSWORD_2: ${{ secrets.LASTPASS_MASTER_PASSWORD_2 }}
+        LASTPASS_SHARE: ${{ secrets.LASTPASS_SHARE }}
+        LASTPASS_SHARE_READ_ONLY: ${{ secrets.LASTPASS_SHARE_READ_ONLY }}

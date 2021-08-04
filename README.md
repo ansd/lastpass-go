@@ -10,9 +10,10 @@
 	- two-factor authentication with one-time password from LastPass Authenticator, Google Authenticator, Microsoft Authenticator, YubiKey, Duo Security, Sesame, etc.
 	- trust: after first successful login with two-factor authentication, the second factor can be skipped
 - create account
-- read accounts (including accounts from shared folders)
+- read accounts
 - update account
 - delete account
+- create / read / update / delete account in shared folder
 - logout
 
 ## Documentation
@@ -65,7 +66,7 @@ account.Password = "updated password"
 client.Update(context.Background(), account)
 
 // Delete() account
-client.Delete(context.Background(), account.ID)
+client.Delete(context.Background(), account)
 
 // Logout()
 client.Logout(context.Background())

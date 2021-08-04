@@ -172,6 +172,7 @@ func (c *Client) Logout(ctx context.Context) error {
 // Since LastPass generates a new account ID, account.ID is ignored.
 // When this method returns (without an error), account.ID is set to the newly generated account ID.
 // If Client is not logged in, an *AuthenticationError is returned.
+// To add an account to a shared folder, account.Share must be prefixed with "Shared-".
 func (c *Client) Add(ctx context.Context, account *Account) error {
 	if account.Name == "" {
 		return errors.New("account.Name must not be empty")
@@ -191,6 +192,9 @@ func (c *Client) Add(ctx context.Context, account *Account) error {
 // Update updates the account with the given account.ID.
 // If account.ID does not exist in LastPass, an *AccountNotFoundError is returned.
 // If Client is not logged in, an *AuthenticationError is returned.
+//
+// Updating an account within a shared folder is supported unless field account.Share itself is modified:
+// To move an account to / from a shared folder, use Delete() and Add() functions instead.
 func (c *Client) Update(ctx context.Context, account *Account) error {
 	result, err := c.upsert(ctx, account)
 	if err != nil {
@@ -202,10 +206,13 @@ func (c *Client) Update(ctx context.Context, account *Account) error {
 	return nil
 }
 
-// Delete deletes the LastPass Account with the given accountID.
-// If accountID does not exist in LastPass, an *AccountNotFoundError is returned.
+// Delete deletes the LastPass Account with the given account.ID.
+// If account.ID does not exist in LastPass, an *AccountNotFoundError is returned.
 // If Client is not logged in, an *AuthenticationError is returned.
-func (c *Client) Delete(ctx context.Context, accountID string) error {
+// If Client is not logged in, an *AuthenticationError is returned.
+//
+// All Account fields other than account.ID and account.Share are ignored.
+func (c *Client) Delete(ctx context.Context, account *Account) error {
 	loggedIn, err := c.loggedIn(ctx)
 	if err != nil {
 		return err
@@ -214,12 +221,27 @@ func (c *Client) Delete(ctx context.Context, accountID string) error {
 		return &AuthenticationError{"client not logged in"}
 	}
 
-	res, err := c.postForm(ctx, EndpointShowWebsite, url.Values{
+	data := url.Values{
 		"extjs":  []string{"1"},
 		"delete": []string{"1"},
-		"aid":    []string{accountID},
+		"aid":    []string{account.ID},
 		"token":  []string{c.session.token},
-	})
+	}
+
+	if account.isShared() {
+		share, err := c.getShare(ctx, account.Share)
+		if err != nil {
+			return err
+		}
+		if share.readOnly {
+			return fmt.Errorf(
+				"Account with ID %s cannot be deleted from read-only shared folder %s.",
+				account.ID, account.Share)
+		}
+		data.Set("sharedfolderid", share.id)
+	}
+
+	res, err := c.postForm(ctx, EndpointShowWebsite, data)
 	if err != nil {
 		return err
 	}
@@ -229,7 +251,7 @@ func (c *Client) Delete(ctx context.Context, accountID string) error {
 	}
 
 	if res.Header.Get("Content-Length") == "0" {
-		return &AccountNotFoundError{accountID}
+		return &AccountNotFoundError{account.ID}
 	}
 
 	defer res.Body.Close()
@@ -238,7 +260,7 @@ func (c *Client) Delete(ctx context.Context, accountID string) error {
 		return err
 	}
 	if response.Result.Msg != "accountdeleted" {
-		return fmt.Errorf("failed to delete account (ID=%s)", accountID)
+		return fmt.Errorf("failed to delete account (ID=%s)", account.ID)
 	}
 	return nil
 }
@@ -261,28 +283,43 @@ func (c *Client) upsert(ctx context.Context, acct *Account) (result, error) {
 		return response.Result, &AuthenticationError{"client not logged in"}
 	}
 
-	nameEncrypted, err := encryptAESCBC(acct.Name, c.encryptionKey)
+	key := c.encryptionKey
+	share := share{}
+	if acct.isShared() {
+		share, err = c.getShare(ctx, acct.Share)
+		if err != nil {
+			return response.Result, err
+		}
+		if share.readOnly {
+			return response.Result, fmt.Errorf(
+				"Account cannot be written to read-only shared folder %s.",
+				acct.Share)
+		}
+		key = share.key
+	}
+
+	nameEncrypted, err := encryptAESCBC(acct.Name, key)
 	if err != nil {
 		return response.Result, err
 	}
-	userNameEncrypted, err := encryptAESCBC(acct.Username, c.encryptionKey)
+	userNameEncrypted, err := encryptAESCBC(acct.Username, key)
 	if err != nil {
 		return response.Result, err
 	}
-	passwordEncrypted, err := encryptAESCBC(acct.Password, c.encryptionKey)
+	passwordEncrypted, err := encryptAESCBC(acct.Password, key)
 	if err != nil {
 		return response.Result, err
 	}
-	groupEncrypted, err := encryptAESCBC(acct.Group, c.encryptionKey)
+	groupEncrypted, err := encryptAESCBC(acct.Group, key)
 	if err != nil {
 		return response.Result, err
 	}
-	notesEncrypted, err := encryptAESCBC(acct.Notes, c.encryptionKey)
+	notesEncrypted, err := encryptAESCBC(acct.Notes, key)
 	if err != nil {
 		return response.Result, err
 	}
 
-	res, err := c.postForm(ctx, EndpointShowWebsite, url.Values{
+	data := url.Values{
 		"extjs":     []string{"1"},
 		"token":     []string{c.session.token},
 		"method":    []string{"cli"},
@@ -294,7 +331,12 @@ func (c *Client) upsert(ctx context.Context, acct *Account) (result, error) {
 		"username":  []string{userNameEncrypted},
 		"password":  []string{passwordEncrypted},
 		"extra":     []string{notesEncrypted},
-	})
+	}
+	if share.id != "" {
+		data.Set("sharedfolderid", share.id)
+	}
+
+	res, err := c.postForm(ctx, EndpointShowWebsite, data)
 	if err != nil {
 		return response.Result, err
 	}

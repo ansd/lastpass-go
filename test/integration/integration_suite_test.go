@@ -18,9 +18,9 @@ func TestIntegration(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	username := os.Getenv("LASTPASS_USERNAME")
+	username := os.Getenv("LASTPASS_USERNAME_1")
 	Expect(username).NotTo(BeEmpty())
-	passwd := os.Getenv("LASTPASS_MASTER_PASSWORD")
+	passwd := os.Getenv("LASTPASS_MASTER_PASSWORD_1")
 	Expect(passwd).NotTo(BeEmpty())
 
 	var err error
@@ -30,5 +30,5 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	Expect(client.Logout(context.Background())).To(Succeed())
-	Expect(client.Delete(context.Background(), "ignored ID")).To(MatchError("client not logged in"))
+	Expect(client.Delete(context.Background(), nil)).To(MatchError("client not logged in"))
 })
