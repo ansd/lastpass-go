@@ -151,9 +151,11 @@ var _ = Describe("Client", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(accts).To(ConsistOf(
 					&Account{
-						ID:   readFile("id-name3.txt"),
-						Name: "name3",
-						URL:  "http://url3",
+						ID:              readFile("id-name3.txt"),
+						Name:            "name3",
+						URL:             "http://url3",
+						LastModifiedGMT: "1566374004",
+						LastTouch:       "1566374009",
 					},
 				))
 				// /iterations.php, /login.php, /login_check.php, /getaccts.php

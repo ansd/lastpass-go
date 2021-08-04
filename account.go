@@ -25,16 +25,21 @@ type Account struct {
 	URL      string
 	Group    string
 	Notes    string
+	// Timestamp in seconds (set by LastPass servers).
+	LastModifiedGMT string
+	LastTouch       string
 }
 
 type encryptedAccount struct {
-	id       string
-	name     []byte
-	username []byte
-	password []byte
-	url      []byte
-	group    []byte
-	notes    []byte
+	id              string
+	name            []byte
+	username        []byte
+	password        []byte
+	url             []byte
+	group           []byte
+	notes           []byte
+	lastModifiedGMT string
+	lastTouch       string
 }
 
 // the blob returned by the /getaccts.php endpoint is made up of chunks
@@ -142,6 +147,7 @@ func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
 	return accts, nil
 }
 
+// see https://github.com/lastpass/lastpass-cli/blob/8767b5e53192ad4e72d1352db4aa9218e928cbe1/blob.c#L356-L421
 func parseAccount(r io.Reader) (*encryptedAccount, error) {
 	id, err := readItem(r)
 	if err != nil {
@@ -176,6 +182,24 @@ func parseAccount(r io.Reader) (*encryptedAccount, error) {
 	if err != nil {
 		return nil, err
 	}
+	for i := 0; i < 3; i++ {
+		if err = skipItem(r); err != nil {
+			return nil, err
+		}
+	}
+	lastTouch, err := readItem(r)
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < 18; i++ {
+		if err = skipItem(r); err != nil {
+			return nil, err
+		}
+	}
+	lastModifiedGMT, err := readItem(r)
+	if err != nil {
+		return nil, err
+	}
 	return &encryptedAccount{
 		string(id),
 		nameEncrypted,
@@ -184,6 +208,8 @@ func parseAccount(r io.Reader) (*encryptedAccount, error) {
 		urlHexEncoded,
 		groupEncrypted,
 		notesEncrypted,
+		string(lastModifiedGMT),
+		string(lastTouch),
 	}, nil
 }
 
@@ -220,6 +246,8 @@ func decryptAccount(encrypted *encryptedAccount, encryptionKey []byte) (*Account
 		string(url),
 		group,
 		notes,
+		encrypted.lastModifiedGMT,
+		encrypted.lastTouch,
 	}, nil
 }
 
