@@ -23,7 +23,6 @@ const (
 	EndpointLogin       = "/login.php"
 	EndpointTrust       = "/trust.php"
 	EndpointLoginCheck  = "/login_check.php"
-	EndpointIterations  = "/iterations.php"
 	EndpointGetAccts    = "/getaccts.php"
 	EndpointShowWebsite = "/show_website.php"
 	EndpointLogout      = "/logout.php"
@@ -94,7 +93,7 @@ func NewClient(ctx context.Context, username, masterPassword string, opts ...Cli
 	if err = c.calculateTrustLabel(); err != nil {
 		return nil, err
 	}
-	if err = c.initSession(ctx, masterPassword); err != nil {
+	if err = c.login(ctx, masterPassword); err != nil {
 		return nil, err
 	}
 	return c, nil

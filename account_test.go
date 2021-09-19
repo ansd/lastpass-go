@@ -27,10 +27,6 @@ var _ = Describe("Account", func() {
 		server = ghttp.NewServer()
 		server.AppendHandlers(
 			ghttp.CombineHandlers(
-				ghttp.VerifyRequest(http.MethodPost, EndpointIterations),
-				ghttp.RespondWith(http.StatusOK, "100100"),
-			),
-			ghttp.CombineHandlers(
 				ghttp.VerifyRequest(http.MethodPost, EndpointLogin),
 				ghttp.RespondWith(http.StatusOK,
 					fmt.Sprintf("<ok token=\"fakeToken\" privatekeyenc=\"%s\"/>", readFile("privatekeyencrypted.txt"))),
@@ -97,8 +93,8 @@ var _ = Describe("Account", func() {
 							LastTouch:       "1566373938",
 						},
 					))
-					// /iterations.php, /login.php, /login_check.php, /getaccts.php
-					Expect(server.ReceivedRequests()).To(HaveLen(4))
+					// /login.php, /login_check.php, /getaccts.php
+					Expect(server.ReceivedRequests()).To(HaveLen(3))
 				})
 			})
 			When("group accounts are returned", func() {
@@ -109,8 +105,8 @@ var _ = Describe("Account", func() {
 					accts, err := client.Accounts(context.Background())
 					Expect(err).NotTo(HaveOccurred())
 					Expect(accts).To(BeEmpty())
-					// /iterations.php, /login.php, /login_check.php, /getaccts.php
-					Expect(server.ReceivedRequests()).To(HaveLen(4))
+					// /login.php, /login_check.php, /getaccts.php
+					Expect(server.ReceivedRequests()).To(HaveLen(3))
 				})
 			})
 			When("shared folders exist whose sharing key is AES encrypted with user's encryption key", func() {
@@ -169,8 +165,8 @@ var _ = Describe("Account", func() {
 							LastTouch:       "0",
 						},
 					))
-					// /iterations.php, /login.php, /login_check.php, /getaccts.php
-					Expect(server.ReceivedRequests()).To(HaveLen(4))
+					// /login.php, /login_check.php, /getaccts.php
+					Expect(server.ReceivedRequests()).To(HaveLen(3))
 				})
 			})
 			When("shared folder exists whose sharing key needs to be decrypted with user's RSA private key", func() {
@@ -194,8 +190,8 @@ var _ = Describe("Account", func() {
 							LastTouch:       "0",
 						},
 					))
-					// /iterations.php, /login.php, /login_check.php, /getaccts.php
-					Expect(server.ReceivedRequests()).To(HaveLen(4))
+					// /login.php, /login_check.php, /getaccts.php
+					Expect(server.ReceivedRequests()).To(HaveLen(3))
 				})
 			})
 			When("an account is AES 256 ECB encrypted", func() {
@@ -218,8 +214,8 @@ var _ = Describe("Account", func() {
 							LastTouch:       "0",
 						},
 					))
-					// /iterations.php, /login.php, /login_check.php, /getaccts.php
-					Expect(server.ReceivedRequests()).To(HaveLen(4))
+					// /login.php, /login_check.php, /getaccts.php
+					Expect(server.ReceivedRequests()).To(HaveLen(3))
 				})
 			})
 			When("blob is not base 64 encoded", func() {

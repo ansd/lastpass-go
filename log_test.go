@@ -29,12 +29,6 @@ var _ = Describe("Log", func() {
 		server = ghttp.NewServer()
 		server.AppendHandlers(
 			ghttp.CombineHandlers(
-				ghttp.VerifyRequest(http.MethodPost, EndpointIterations),
-				ghttp.RespondWith(http.StatusOK, "100100"),
-			),
-		)
-		server.AppendHandlers(
-			ghttp.CombineHandlers(
 				ghttp.VerifyRequest(http.MethodPost, EndpointLogin),
 				ghttp.RespondWith(http.StatusOK, fmt.Sprintf("<ok token=\"%s\" privatekeyenc=\"%s\" />",
 					"fakeToken", readFile("privatekeyencrypted.txt"))),
@@ -45,9 +39,7 @@ var _ = Describe("Log", func() {
 
 	AfterEach(func() {
 		Expect(err).NotTo(HaveOccurred())
-		lines := strings.Split(logs.String(), "\n")
-		Expect(lines[0]).To(MatchRegexp(`^POST http://127\.0\.0\.1:[0-9]{1,5}/iterations\.php$`))
-		Expect(lines[1]).To(MatchRegexp(`^POST http://127\.0\.0\.1:[0-9]{1,5}/login\.php$`))
+		Expect(logs.String()).To(MatchRegexp(`^POST http://127\.0\.0\.1:[0-9]{1,5}/login\.php`))
 		server.Close()
 	})
 

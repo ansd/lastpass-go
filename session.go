@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"strconv"
 	"time"
@@ -19,48 +18,26 @@ import (
 // if the login fails with cause "outofbandrequired".
 // This increases the user's time to approve the out-of-band (2nd) factor
 // (e.g. approving a push notification sent to their mobile phone).
-const MaxLoginRetries = 7
+const (
+	MaxLoginRetries         = 7
+	defaultPasswdIterations = 100100
+)
 
 type session struct {
+	// passwdIterations controls how many times password is hashed using PBKDF2
+	// before being sent to LastPass servers.
 	passwdIterations int
 	token            string
 	// user's private key for decrypting sharing keys (encryption keys of shared folders)
 	privateKey *rsa.PrivateKey
 }
 
-func (c *Client) initSession(ctx context.Context, password string) error {
-	c.session = &session{}
-	if err := c.requestIterationCount(ctx, c.user); err != nil {
-		return err
-	}
-	if err := c.login(ctx, password); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *Client) requestIterationCount(ctx context.Context, username string) error {
-	res, err := c.postForm(ctx, EndpointIterations, url.Values{"email": []string{username}})
-	if err != nil {
-		return err
-	}
-
-	defer res.Body.Close()
-	b, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-
-	count, err := strconv.Atoi(string(b))
-	if err != nil {
-		return err
-	}
-	c.session.passwdIterations = count
-
-	return nil
-}
-
 func (c *Client) login(ctx context.Context, password string) error {
+	if c.session == nil {
+		c.session = &session{
+			passwdIterations: defaultPasswdIterations,
+		}
+	}
 	form := url.Values{
 		"method":               []string{"cli"},
 		"xml":                  []string{"1"},
@@ -87,9 +64,10 @@ func (c *Client) login(ctx context.Context, password string) error {
 
 	defer httpRsp.Body.Close()
 	type Error struct {
-		Msg     string `xml:"message,attr"`
-		Cause   string `xml:"cause,attr"`
-		RetryID string `xml:"retryid,attr"`
+		Msg        string `xml:"message,attr"`
+		Cause      string `xml:"cause,attr"`
+		RetryID    string `xml:"retryid,attr"`
+		Iterations string `xml:"iterations,attr"`
 	}
 	type response struct {
 		Error               Error  `xml:"error"`
@@ -99,6 +77,19 @@ func (c *Client) login(ctx context.Context, password string) error {
 	rsp := &response{}
 	if err = xml.NewDecoder(httpRsp.Body).Decode(rsp); err != nil {
 		return err
+	}
+
+	if rsp.Error.Iterations != "" {
+		var iterations int
+		if iterations, err = strconv.Atoi(rsp.Error.Iterations); err != nil {
+			return fmt.Errorf(
+				"failed to parse iterations count, expected '%s' to be integer: %w",
+				rsp.Error.Iterations, err)
+		}
+		c.log(ctx, "failed to login with %d password iterations, re-trying with %d password iterations...",
+			c.session.passwdIterations, iterations)
+		c.session.passwdIterations = iterations
+		return c.login(ctx, password)
 	}
 
 	const outOfBandRequired = "outofbandrequired"
