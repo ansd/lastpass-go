@@ -186,6 +186,12 @@ func aes256ECBBase64(size64 int) bool {
 // The private key gets encrypted locally with the user's encryption key and also
 // uploaded to LastPass.
 func decryptPrivateKey(privateKeyEncrypted string, encryptionKey []byte) (*rsa.PrivateKey, error) {
+	if privateKeyEncrypted == "" {
+		// Key pair is not yet created. This happens for example when the account got created via
+		// https://lastpass.com/create-account.php but the user has never logged in.
+		return nil, nil
+	}
+
 	privateKeyAESEncrypted, err := hex.DecodeString(privateKeyEncrypted)
 	if err != nil {
 		return nil, err

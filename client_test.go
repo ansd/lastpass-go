@@ -162,6 +162,53 @@ var _ = Describe("Client", func() {
 			})
 		})
 
+		Context("empty privatekeyenc", func() {
+			BeforeEach(func() {
+				respLoginCheck := `<response> <ok accts_version="111"/> </response>`
+				server.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest(http.MethodPost, EndpointLogin),
+						contentTypeVerifier,
+						ghttp.VerifyForm(loginForm),
+						ghttp.RespondWith(http.StatusOK, "<response><error iterations=\"1\"/></response>"),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest(http.MethodPost, EndpointLogin),
+						contentTypeVerifier,
+						ghttp.VerifyFormKV("iterations", "1"),
+						ghttp.RespondWith(http.StatusOK, "<ok token=\"fakeToken\" privatekeyenc=\"\"/>"),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest(http.MethodPost, EndpointLoginCheck),
+						ghttp.RespondWith(http.StatusOK, respLoginCheck),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest(http.MethodGet, EndpointGetAccts,
+							"requestsrc=cli&mobile=1&b64=1&hasplugin=1.3.3"),
+						ghttp.RespondWith(http.StatusOK, readFile("blob-1iteration.txt")),
+					),
+				)
+				var err error
+				client, err = NewClient(context.Background(), user, passwd, WithBaseURL(server.URL()))
+				Expect(err).NotTo(HaveOccurred())
+			})
+			It("works", func() {
+				accts, err := client.Accounts(context.Background())
+				Expect(err).NotTo(HaveOccurred())
+				Expect(accts).To(ConsistOf(
+					&Account{
+						ID:              readFile("id-name3.txt"),
+						Name:            "name3",
+						URL:             "http://url3",
+						LastModifiedGMT: "1566374004",
+						LastTouch:       "1566374009",
+					},
+				))
+				// /login.php, /login.php, /login_check.php, /getaccts.php
+				Expect(server.ReceivedRequests()).To(HaveLen(4))
+			})
+		})
+
 		When("authentication fails", func() {
 			var cause string
 			var msg string
