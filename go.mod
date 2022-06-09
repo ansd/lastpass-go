@@ -1,4 +1,4 @@
-module github.com/ansd/lastpass-go
+module github.com/veloceapps/lastpass-go
 
 go 1.12
 
