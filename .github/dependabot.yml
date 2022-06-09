@@ -10,8 +10,3 @@ updates:
   open-pull-requests-limit: 10
   reviewers:
   - ansd
-  ignore:
-  - dependency-name: github.com/onsi/ginkgo
-    versions:
-    - 1.15.1
-    - 1.16.0

@@ -37,7 +37,7 @@ import "github.com/ansd/lastpass-go"
 
 Below, error handling is excluded for brevity.
 
-See [examples](https://github.com/ansd/lastpass-go/tree/master/examples) directory for more examples.
+See [examples](./examples) directory for more examples.
 
 ```go
 // authenticate with LastPass servers
@@ -77,6 +77,6 @@ client.Logout(context.Background())
 This repository is a port of [detunized/lastpass-ruby](https://github.com/detunized/lastpass-ruby)
 and a clone of [mattn/lastpass-go](https://github.com/mattn/lastpass-go).
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/ansd/lastpass-go/blob/master/LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
 This repository's `ecb` (Electronic Codebook) package contains code which is "Copyright 2013 The Go Authors. All rights reserved."
