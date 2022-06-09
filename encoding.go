@@ -15,7 +15,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/ansd/lastpass-go/ecb"
+	"github.com/veloceapps/lastpass-go/ecb"
 )
 
 // LastPass blob chunk is made up of 4-byte ID,

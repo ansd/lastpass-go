@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ansd/lastpass-go"
+	"github.com/veloceapps/lastpass-go"
 )
 
 func main() {

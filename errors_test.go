@@ -4,7 +4,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	. "github.com/ansd/lastpass-go"
+	. "github.com/veloceapps/lastpass-go"
 )
 
 var _ = Describe("Errors", func() {

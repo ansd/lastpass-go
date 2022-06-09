@@ -17,9 +17,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/ansd/lastpass-go"
-	"github.com/ansd/lastpass-go/ecb"
-	"github.com/ansd/lastpass-go/test/unit/login"
+	"github.com/veloceapps/lastpass-go"
+	"github.com/veloceapps/lastpass-go/ecb"
+	"github.com/veloceapps/lastpass-go/test/unit/login"
 )
 
 func main() {

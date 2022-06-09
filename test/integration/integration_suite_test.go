@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ansd/lastpass-go"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/veloceapps/lastpass-go"
 )
 
 var client *lastpass.Client

@@ -8,7 +8,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/ansd/lastpass-go"
+	"github.com/veloceapps/lastpass-go"
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 	masterPassword := lines[1]
 
 	// NewClient() authenticates with LastPass servers.
-	// Read examples at https://pkg.go.dev/github.com/ansd/lastpass-go#NewClient for two-factor authentication.
+	// Read examples at https://pkg.go.dev/github.com/veloceapps/lastpass-go#NewClient for two-factor authentication.
 	client, err := lastpass.NewClient(context.Background(), username, masterPassword)
 	if err != nil {
 		log.Fatalln(err)

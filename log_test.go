@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
 
-	. "github.com/ansd/lastpass-go"
+	. "github.com/veloceapps/lastpass-go"
 )
 
 var _ = Describe("Log", func() {

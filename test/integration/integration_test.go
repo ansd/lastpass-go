@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	. "github.com/ansd/lastpass-go"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
+	. "github.com/veloceapps/lastpass-go"
 )
 
 var _ = Describe("Integration", func() {

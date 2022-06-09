@@ -101,7 +101,7 @@ func NewClient(ctx context.Context, username, masterPassword string, opts ...Cli
 
 // WithOneTimePassword enables two-factor authentication with a one-time password
 // as the second factor. For an example how to use this function see
-// https://godoc.org/github.com/ansd/lastpass-go#example-NewClient--OneTimePasswordAuthentication.
+// https://godoc.org/github.com/veloceapps/lastpass-go#example-NewClient--OneTimePasswordAuthentication.
 func WithOneTimePassword(oneTimePassword string) ClientOption {
 	return func(c *Client) {
 		c.otp = oneTimePassword

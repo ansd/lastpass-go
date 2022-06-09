@@ -13,7 +13,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/ansd/lastpass-go/test/unit/login"
+	"github.com/veloceapps/lastpass-go/test/unit/login"
 )
 
 func main() {

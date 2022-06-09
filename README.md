@@ -1,6 +1,6 @@
-[![Documentation](https://godoc.org/github.com/ansd/lastpass-go?status.svg)](https://pkg.go.dev/github.com/ansd/lastpass-go)
-[![Go Report Card](https://goreportcard.com/badge/github.com/ansd/lastpass-go)](https://goreportcard.com/report/github.com/ansd/lastpass-go)
-![Test](https://github.com/ansd/lastpass-go/workflows/Test/badge.svg)
+[![Documentation](https://godoc.org/github.com/veloceapps/lastpass-go?status.svg)](https://pkg.go.dev/github.com/veloceapps/lastpass-go)
+[![Go Report Card](https://goreportcard.com/badge/github.com/veloceapps/lastpass-go)](https://goreportcard.com/report/github.com/veloceapps/lastpass-go)
+![Test](https://github.com/veloceapps/lastpass-go/workflows/Test/badge.svg)
 # Go client for LastPass
 
 ## Features
@@ -17,20 +17,20 @@
 - logout
 
 ## Documentation
-https://pkg.go.dev/github.com/ansd/lastpass-go
+https://pkg.go.dev/github.com/veloceapps/lastpass-go
 
 ## Installation
 
 Install:
 
 ```shell
-$ go get github.com/ansd/lastpass-go
+$ go get github.com/veloceapps/lastpass-go
 ```
 
 Import:
 
 ```go
-import "github.com/ansd/lastpass-go"
+import "github.com/veloceapps/lastpass-go"
 ```
 
 ## Usage

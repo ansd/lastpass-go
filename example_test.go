@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/ansd/lastpass-go"
+	"github.com/veloceapps/lastpass-go"
 )
 
 // Login with master password (without two-factor authentication).
