@@ -7,8 +7,10 @@ import (
 	"encoding/hex"
 	"encoding/xml"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/pbkdf2"
@@ -31,6 +33,9 @@ type session struct {
 	// user's private key for decrypting sharing keys (encryption keys of shared folders)
 	privateKey *rsa.PrivateKey
 }
+
+const retryDelay = 1000 * time.Millisecond
+const retryMult = time.Duration(2)
 
 func (c *Client) login(ctx context.Context, password string) error {
 	if c.session == nil {
@@ -57,9 +62,20 @@ func (c *Client) login(ctx context.Context, password string) error {
 	}
 
 	loginStartTime := time.Now()
-	httpRsp, err := c.postForm(ctx, EndpointLogin, form)
-	if err != nil {
-		return err
+
+	var httpRsp *http.Response
+	var err error
+	for retry := 1; retry <= MaxLoginRetries; retry++ {
+		httpRsp, err = c.postForm(ctx, EndpointLogin, form)
+		if err != nil && strings.Contains(fmt.Sprintf("%s", err), "EOF") {
+			delay := time.Duration(retry) * retryMult * retryDelay
+			time.Sleep(delay)
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		break
 	}
 
 	defer httpRsp.Body.Close()
@@ -100,6 +116,11 @@ func (c *Client) login(ctx context.Context, password string) error {
 		for i := 0; i < MaxLoginRetries; i++ {
 			rsp = &response{}
 			httpRsp, err = c.postForm(ctx, EndpointLogin, form)
+			if err != nil && strings.Contains(fmt.Sprintf("%s", err), "EOF") {
+				delay := time.Duration(i+1) * retryMult * retryDelay
+				time.Sleep(delay)
+				continue
+			}
 			if err != nil {
 				return err
 			}
