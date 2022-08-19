@@ -118,7 +118,7 @@ func (c *Client) fetchBlob(ctx context.Context) ([]byte, error) {
 }
 
 func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
-	chunks, err := c.getCompleteChunks(r)
+	chunks, err := getCompleteChunks(r)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
 	return accts, nil
 }
 
-func (c *Client) getCompleteChunks(r io.Reader) ([]*chunk, error) {
+func getCompleteChunks(r io.Reader) ([]*chunk, error) {
 	chunks, err := extractChunks(r)
 	if err != nil {
 		return nil, err
@@ -380,7 +380,7 @@ func (c *Client) getShare(ctx context.Context, shareName string) (share, error) 
 	if err != nil {
 		return share{}, err
 	}
-	chunks, err := c.getCompleteChunks(bytes.NewReader(blob))
+	chunks, err := getCompleteChunks(bytes.NewReader(blob))
 	if err != nil {
 		return share{}, err
 	}
