@@ -38,11 +38,15 @@ func (c *Client) login(ctx context.Context, password string) error {
 			passwdIterations: defaultPasswdIterations,
 		}
 	}
+
+	loginHash, encKey := loginHashAndEncKey(c.user, password, c.session.passwdIterations)
+	c.encryptionKey = encKey
+
 	form := url.Values{
 		"method":               []string{"cli"},
 		"xml":                  []string{"1"},
 		"username":             []string{c.user},
-		"hash":                 []string{c.loginHash(password)},
+		"hash":                 []string{loginHash},
 		"iterations":           []string{fmt.Sprint(c.session.passwdIterations)},
 		"includeprivatekeyenc": []string{"1"},
 	}
@@ -144,16 +148,14 @@ func (c *Client) login(ctx context.Context, password string) error {
 	return nil
 }
 
-func (c *Client) loginHash(password string) string {
-	iterations := c.session.passwdIterations
-	key := encryptionKey(c.user, password, iterations)
-	c.encryptionKey = key
+func loginHashAndEncKey(username string, password string, passwdIterations int) (string, []byte) {
+	encKey := encryptionKey(username, password, passwdIterations)
 
-	if iterations == 1 {
-		b := sha256.Sum256([]byte(hex.EncodeToString(key) + password))
-		return hex.EncodeToString(b[:])
+	if passwdIterations == 1 {
+		b := sha256.Sum256([]byte(hex.EncodeToString(encKey) + password))
+		return hex.EncodeToString(b[:]), encKey
 	}
-	return hex.EncodeToString(pbkdf2.Key(key, []byte(password), 1, 32, sha256.New))
+	return hex.EncodeToString(pbkdf2.Key(encKey, []byte(password), 1, 32, sha256.New)), encKey
 }
 
 func encryptionKey(username, password string, passwdIterations int) []byte {
