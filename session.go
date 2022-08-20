@@ -66,7 +66,6 @@ func (c *Client) login(ctx context.Context, password string) error {
 		return err
 	}
 
-	defer httpRsp.Body.Close()
 	type Error struct {
 		Msg        string `xml:"message,attr"`
 		Cause      string `xml:"cause,attr"`
@@ -79,7 +78,9 @@ func (c *Client) login(ctx context.Context, password string) error {
 		PrivateKeyEncrypted string `xml:"privatekeyenc,attr"`
 	}
 	rsp := &response{}
-	if err = xml.NewDecoder(httpRsp.Body).Decode(rsp); err != nil {
+	err = xml.NewDecoder(httpRsp.Body).Decode(rsp)
+	_ = httpRsp.Body.Close()
+	if err != nil {
 		return err
 	}
 
@@ -103,12 +104,13 @@ func (c *Client) login(ctx context.Context, password string) error {
 		form.Set("outofbandretryid", rsp.Error.RetryID)
 		for i := 0; i < MaxLoginRetries; i++ {
 			rsp = &response{}
-			httpRsp, err = c.postForm(ctx, EndpointLogin, form)
+			oobResp, err := c.postForm(ctx, EndpointLogin, form)
 			if err != nil {
 				return err
 			}
-			defer httpRsp.Body.Close()
-			if err = xml.NewDecoder(httpRsp.Body).Decode(&rsp); err != nil {
+			err = xml.NewDecoder(oobResp.Body).Decode(&rsp)
+			_ = oobResp.Body.Close()
+			if err != nil {
 				return err
 			}
 			if rsp.Error.Cause != outOfBandRequired {
