@@ -40,7 +40,6 @@ const (
 // Client represents a LastPass client.
 // A Client can be logged in to a single account at a given time.
 type Client struct {
-	user       string
 	httpClient *http.Client
 	session    *session
 	baseURL    string
@@ -74,7 +73,6 @@ func NewClient(ctx context.Context, username, masterPassword string, opts ...Cli
 		return nil, &AuthenticationError{"masterPassword must not be empty"}
 	}
 	c := &Client{
-		user:    username,
 		baseURL: "https://lastpass.com",
 	}
 	cookieJar, err := cookiejar.New(nil)
@@ -96,7 +94,7 @@ func NewClient(ctx context.Context, username, masterPassword string, opts ...Cli
 	if err = c.calculateTrustLabel(); err != nil {
 		return nil, err
 	}
-	currentSession, err := c.login(ctx, masterPassword, defaultPasswdIterations)
+	currentSession, err := c.login(ctx, username, masterPassword, defaultPasswdIterations)
 	if err != nil {
 		return nil, err
 	}

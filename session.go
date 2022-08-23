@@ -32,13 +32,13 @@ type session struct {
 	privateKey *rsa.PrivateKey
 }
 
-func (c *Client) login(ctx context.Context, password string, passwdIterations int) (*session, error) {
-	loginHash, encKey := loginHashAndEncKey(c.user, password, passwdIterations)
+func (c *Client) login(ctx context.Context, user string, passwd string, passwdIterations int) (*session, error) {
+	loginHash, encKey := loginHashAndEncKey(user, passwd, passwdIterations)
 
 	form := url.Values{
 		"method":               []string{"cli"},
 		"xml":                  []string{"1"},
-		"username":             []string{c.user},
+		"username":             []string{user},
 		"hash":                 []string{loginHash},
 		"iterations":           []string{fmt.Sprint(passwdIterations)},
 		"includeprivatekeyenc": []string{"1"},
@@ -86,7 +86,7 @@ func (c *Client) login(ctx context.Context, password string, passwdIterations in
 		}
 		c.log(ctx, "failed to login with %d password iterations, re-trying with %d password iterations...",
 			passwdIterations, iterations)
-		return c.login(ctx, password, iterations)
+		return c.login(ctx, user, passwd, iterations)
 	}
 
 	const outOfBandRequired = "outofbandrequired"
