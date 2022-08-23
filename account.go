@@ -327,6 +327,12 @@ func parseShare(r io.Reader, encryptionKey []byte, privateKey *rsa.PrivateKey) (
 	} else {
 		// The user who shares the folder with us, encrypted the sharing key with our public key.
 		// Therefore, we decrypt the sharing key with our private key.
+		if privateKey == nil {
+			return share{}, errors.New("account private key is nil - " +
+				"refer to the following url for more information: " +
+				"https://support.lastpass.com/help/" +
+				"why-am-i-seeing-an-error-no-private-key-cannot-decrypt-pending-shares-message-lp010147")
+		}
 
 		sharingKeyRSAEncrypted, err := decodeHex(sharingKeyRSAEncryptedHex)
 		if err != nil {
