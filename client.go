@@ -40,17 +40,16 @@ const (
 // Client represents a LastPass client.
 // A Client can be logged in to a single account at a given time.
 type Client struct {
-	user          string
-	httpClient    *http.Client
-	encryptionKey []byte
-	session       *session
-	baseURL       string
-	otp           string
-	logger        Logger
-	configDir     string
-	trust         bool
-	trustID       string
-	trustLabel    string
+	user       string
+	httpClient *http.Client
+	session    *session
+	baseURL    string
+	otp        string
+	logger     Logger
+	configDir  string
+	trust      bool
+	trustID    string
+	trustLabel string
 }
 
 // ClientOption is the type of constructor options for NewClient(...).
@@ -288,7 +287,7 @@ func (c *Client) upsert(ctx context.Context, acct *Account) (result, error) {
 		return response.Result, &AuthenticationError{"client not logged in"}
 	}
 
-	key := c.encryptionKey
+	key := c.session.encryptionKey
 	share := share{}
 	if acct.isShared() {
 		share, err = c.getShare(ctx, acct.Share)
