@@ -40,7 +40,7 @@ const (
 // Client represents a LastPass client.
 // A Client can be logged in to a single account at a given time.
 type Client struct {
-	httpClient *http.Client
+	httpClient HTTPClient
 	session    *session
 	baseURL    string
 	otp        string
@@ -75,23 +75,25 @@ func NewClient(ctx context.Context, username, masterPassword string, opts ...Cli
 	c := &Client{
 		baseURL: "https://lastpass.com",
 	}
-	cookieJar, err := cookiejar.New(nil)
-	if err != nil {
-		return nil, err
-	}
-	c.httpClient = &http.Client{
-		Jar: cookieJar,
-	}
 	for _, opt := range opts {
 		opt(c)
+	}
+	if c.httpClient == nil {
+		cookieJar, err := cookiejar.New(nil)
+		if err != nil {
+			return nil, err
+		}
+		c.httpClient = &http.Client{
+			Jar: cookieJar,
+		}
 	}
 	if err := c.setConfigDir(); err != nil {
 		return nil, err
 	}
-	if err = c.calculateTrustID(ctx); err != nil {
+	if err := c.calculateTrustID(ctx); err != nil {
 		return nil, err
 	}
-	if err = c.calculateTrustLabel(); err != nil {
+	if err := c.calculateTrustLabel(); err != nil {
 		return nil, err
 	}
 	currentSession, err := c.login(ctx, username, masterPassword, defaultPasswdIterations)
@@ -144,6 +146,21 @@ func WithConfigDir(path string) ClientOption {
 func WithTrust() ClientOption {
 	return func(c *Client) {
 		c.trust = true
+	}
+}
+
+// HTTPClient abstracts a Go http.Client with the Do method.
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// WithHTTPClient optionally specifies a custom HTTPClient to use.
+//
+// A new instance of a http.Client is used if this option is
+// not specified.
+func WithHTTPClient(httpClient HTTPClient) ClientOption {
+	return func(c *Client) {
+		c.httpClient = httpClient
 	}
 }
 
