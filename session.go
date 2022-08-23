@@ -27,6 +27,7 @@ type session struct {
 	// before being sent to LastPass servers.
 	passwdIterations int
 	token            string
+	encryptionKey    []byte
 	// user's private key for decrypting sharing keys (encryption keys of shared folders)
 	privateKey *rsa.PrivateKey
 }
@@ -131,16 +132,15 @@ func (c *Client) login(ctx context.Context, password string, passwdIterations in
 		}
 	}
 
-	privateKey, err := decryptPrivateKey(rsp.PrivateKeyEncrypted, c.encryptionKey)
+	privateKey, err := decryptPrivateKey(rsp.PrivateKeyEncrypted, encKey)
 	if err != nil {
 		return nil, err
 	}
 
-	c.encryptionKey = encKey
-
 	return &session{
 		passwdIterations: passwdIterations,
 		token:            rsp.Token,
+		encryptionKey:    encKey,
 		privateKey:       privateKey,
 	}, nil
 }
