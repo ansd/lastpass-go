@@ -189,6 +189,8 @@ func decryptPrivateKey(privateKeyEncrypted string, encryptionKey []byte) (*rsa.P
 	if privateKeyEncrypted == "" {
 		// Key pair is not yet created. This happens for example when the account got created via
 		// https://lastpass.com/create-account.php but the user has never logged in.
+		// https://support.lastpass.com/help/
+		// why-am-i-seeing-an-error-no-private-key-cannot-decrypt-pending-shares-message-lp010147
 		return nil, nil
 	}
 
