@@ -33,6 +33,10 @@ const (
 	allowedCharsInTrustID = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$"
 )
 
+const (
+	defaultPasswdIterations = 100100
+)
+
 // Client represents a LastPass client.
 // A Client can be logged in to a single account at a given time.
 type Client struct {
@@ -93,7 +97,7 @@ func NewClient(ctx context.Context, username, masterPassword string, opts ...Cli
 	if err = c.calculateTrustLabel(); err != nil {
 		return nil, err
 	}
-	if err = c.login(ctx, masterPassword); err != nil {
+	if err = c.login(ctx, masterPassword, defaultPasswdIterations); err != nil {
 		return nil, err
 	}
 	return c, nil
