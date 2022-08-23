@@ -97,9 +97,11 @@ func NewClient(ctx context.Context, username, masterPassword string, opts ...Cli
 	if err = c.calculateTrustLabel(); err != nil {
 		return nil, err
 	}
-	if err = c.login(ctx, masterPassword, defaultPasswdIterations); err != nil {
+	currentSession, err := c.login(ctx, masterPassword, defaultPasswdIterations)
+	if err != nil {
 		return nil, err
 	}
+	c.session = currentSession
 	return c, nil
 }
 

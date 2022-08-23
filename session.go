@@ -31,22 +31,15 @@ type session struct {
 	privateKey *rsa.PrivateKey
 }
 
-func (c *Client) login(ctx context.Context, password string, passwdIterations int) error {
-	if c.session == nil {
-		c.session = &session{
-			passwdIterations: passwdIterations,
-		}
-	}
-
-	loginHash, encKey := loginHashAndEncKey(c.user, password, c.session.passwdIterations)
-	c.encryptionKey = encKey
+func (c *Client) login(ctx context.Context, password string, passwdIterations int) (*session, error) {
+	loginHash, encKey := loginHashAndEncKey(c.user, password, passwdIterations)
 
 	form := url.Values{
 		"method":               []string{"cli"},
 		"xml":                  []string{"1"},
 		"username":             []string{c.user},
 		"hash":                 []string{loginHash},
-		"iterations":           []string{fmt.Sprint(c.session.passwdIterations)},
+		"iterations":           []string{fmt.Sprint(passwdIterations)},
 		"includeprivatekeyenc": []string{"1"},
 	}
 	if c.trustID != "" {
@@ -62,7 +55,7 @@ func (c *Client) login(ctx context.Context, password string, passwdIterations in
 	loginStartTime := time.Now()
 	httpRsp, err := c.postForm(ctx, EndpointLogin, form)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	type Error struct {
@@ -80,19 +73,18 @@ func (c *Client) login(ctx context.Context, password string, passwdIterations in
 	err = xml.NewDecoder(httpRsp.Body).Decode(rsp)
 	_ = httpRsp.Body.Close()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if rsp.Error.Iterations != "" {
 		var iterations int
 		if iterations, err = strconv.Atoi(rsp.Error.Iterations); err != nil {
-			return fmt.Errorf(
+			return nil, fmt.Errorf(
 				"failed to parse iterations count, expected '%s' to be integer: %w",
 				rsp.Error.Iterations, err)
 		}
 		c.log(ctx, "failed to login with %d password iterations, re-trying with %d password iterations...",
-			c.session.passwdIterations, iterations)
-		c.session.passwdIterations = iterations
+			passwdIterations, iterations)
 		return c.login(ctx, password, iterations)
 	}
 
@@ -105,19 +97,19 @@ func (c *Client) login(ctx context.Context, password string, passwdIterations in
 			rsp = &response{}
 			oobResp, err := c.postForm(ctx, EndpointLogin, form)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			err = xml.NewDecoder(oobResp.Body).Decode(&rsp)
 			_ = oobResp.Body.Close()
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if rsp.Error.Cause != outOfBandRequired {
 				break
 			}
 		}
 		if rsp.Error.Cause == outOfBandRequired {
-			return &AuthenticationError{fmt.Sprintf(
+			return nil, &AuthenticationError{fmt.Sprintf(
 				"didn't receive out-of-band approval within the last %.0f seconds",
 				time.Since(loginStartTime).Seconds(),
 			)}
@@ -125,7 +117,7 @@ func (c *Client) login(ctx context.Context, password string, passwdIterations in
 	}
 
 	if rsp.Error.Cause != "" {
-		return &AuthenticationError{fmt.Sprintf("%s: %s", rsp.Error.Cause, rsp.Error.Msg)}
+		return nil, &AuthenticationError{fmt.Sprintf("%s: %s", rsp.Error.Cause, rsp.Error.Msg)}
 	}
 
 	if c.trust {
@@ -135,18 +127,22 @@ func (c *Client) login(ctx context.Context, password string, passwdIterations in
 			"trustlabel": []string{c.trustLabel},
 		}
 		if _, err := c.postForm(ctx, EndpointTrust, trustForm); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	c.session.token = rsp.Token
 	privateKey, err := decryptPrivateKey(rsp.PrivateKeyEncrypted, c.encryptionKey)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	c.session.privateKey = privateKey
 
-	return nil
+	c.encryptionKey = encKey
+
+	return &session{
+		passwdIterations: passwdIterations,
+		token:            rsp.Token,
+		privateKey:       privateKey,
+	}, nil
 }
 
 func loginHashAndEncKey(username string, password string, passwdIterations int) (string, []byte) {
