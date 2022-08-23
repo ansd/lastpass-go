@@ -19,8 +19,7 @@ import (
 // This increases the user's time to approve the out-of-band (2nd) factor
 // (e.g. approving a push notification sent to their mobile phone).
 const (
-	MaxLoginRetries         = 7
-	defaultPasswdIterations = 100100
+	MaxLoginRetries = 7
 )
 
 type session struct {
@@ -32,10 +31,10 @@ type session struct {
 	privateKey *rsa.PrivateKey
 }
 
-func (c *Client) login(ctx context.Context, password string) error {
+func (c *Client) login(ctx context.Context, password string, passwdIterations int) error {
 	if c.session == nil {
 		c.session = &session{
-			passwdIterations: defaultPasswdIterations,
+			passwdIterations: passwdIterations,
 		}
 	}
 
@@ -94,7 +93,7 @@ func (c *Client) login(ctx context.Context, password string) error {
 		c.log(ctx, "failed to login with %d password iterations, re-trying with %d password iterations...",
 			c.session.passwdIterations, iterations)
 		c.session.passwdIterations = iterations
-		return c.login(ctx, password)
+		return c.login(ctx, password, iterations)
 	}
 
 	const outOfBandRequired = "outofbandrequired"
