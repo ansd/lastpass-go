@@ -41,7 +41,7 @@ const (
 // A Client can be logged in to a single account at a given time.
 type Client struct {
 	httpClient HTTPClient
-	session    *session
+	session    *Session
 	baseURL    string
 	otp        string
 	logger     Logger
@@ -72,6 +72,28 @@ func NewClient(ctx context.Context, username, masterPassword string, opts ...Cli
 	if masterPassword == "" {
 		return nil, &AuthenticationError{"masterPassword must not be empty"}
 	}
+	client, err := setupClient(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	currentSession, err := client.login(ctx, username, masterPassword, defaultPasswdIterations)
+	if err != nil {
+		return nil, err
+	}
+	client.session = currentSession
+	return client, nil
+}
+
+func NewClientFromSession(ctx context.Context, currentSession *Session, opts ...ClientOption) (*Client, error) {
+	client, err := setupClient(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	client.session = currentSession
+	return client, nil
+}
+
+func setupClient(ctx context.Context, opts ...ClientOption) (*Client, error) {
 	c := &Client{
 		baseURL: "https://lastpass.com",
 	}
@@ -96,11 +118,6 @@ func NewClient(ctx context.Context, username, masterPassword string, opts ...Cli
 	if err := c.calculateTrustLabel(); err != nil {
 		return nil, err
 	}
-	currentSession, err := c.login(ctx, username, masterPassword, defaultPasswdIterations)
-	if err != nil {
-		return nil, err
-	}
-	c.session = currentSession
 	return c, nil
 }
 
@@ -164,6 +181,14 @@ func WithHTTPClient(httpClient HTTPClient) ClientOption {
 	}
 }
 
+func (c *Client) Session() (*Session, error) {
+	if c.session == nil {
+		return nil, errors.New("current session is nil")
+	}
+
+	return c.session, nil
+}
+
 // Logout invalidates the session cookie.
 func (c *Client) Logout(ctx context.Context) error {
 	loggedIn, err := c.loggedIn(ctx)
@@ -177,7 +202,7 @@ func (c *Client) Logout(ctx context.Context) error {
 	res, err := c.postForm(ctx, EndpointLogout, url.Values{
 		"method":     []string{"cli"},
 		"noredirect": []string{"1"},
-		"token":      []string{c.session.token},
+		"token":      []string{c.session.Token},
 	})
 	if err != nil {
 		return err
@@ -244,7 +269,7 @@ func (c *Client) Delete(ctx context.Context, account *Account) error {
 		"extjs":  []string{"1"},
 		"delete": []string{"1"},
 		"aid":    []string{account.ID},
-		"token":  []string{c.session.token},
+		"token":  []string{c.session.Token},
 	}
 
 	if account.isShared() {
@@ -302,7 +327,7 @@ func (c *Client) upsert(ctx context.Context, acct *Account) (result, error) {
 		return response.Result, &AuthenticationError{"client not logged in"}
 	}
 
-	key := c.session.encryptionKey
+	key := c.session.EncryptionKey
 	share := share{}
 	if acct.isShared() {
 		share, err = c.getShare(ctx, acct.Share)
@@ -340,7 +365,7 @@ func (c *Client) upsert(ctx context.Context, acct *Account) (result, error) {
 
 	data := url.Values{
 		"extjs":     []string{"1"},
-		"token":     []string{c.session.token},
+		"token":     []string{c.session.Token},
 		"method":    []string{"cli"},
 		"pwprotect": []string{"off"},
 		"aid":       []string{acct.ID},
@@ -370,7 +395,7 @@ func (c *Client) upsert(ctx context.Context, acct *Account) (result, error) {
 }
 
 func (c *Client) loggedIn(ctx context.Context) (bool, error) {
-	if c.session == nil || c.session.token == "" {
+	if c.session == nil || c.session.Token == "" {
 		return false, nil
 	}
 

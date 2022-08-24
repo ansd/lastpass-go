@@ -22,17 +22,21 @@ const (
 	MaxLoginRetries = 7
 )
 
-type session struct {
-	// passwdIterations controls how many times password is hashed using PBKDF2
-	// before being sent to LastPass servers.
-	passwdIterations int
-	token            string
-	encryptionKey    []byte
-	// user's private key for decrypting sharing keys (encryption keys of shared folders)
-	privateKey *rsa.PrivateKey
+type Session struct {
+	// PasswdIterations controls how many times the user's password
+	// is hashed using PBKDF2 before being sent to LastPass.
+	PasswdIterations int
+
+	Token string
+
+	EncryptionKey []byte
+
+	// User's private key for decrypting sharing keys (encryption keys
+	// of shared folders).
+	PrivateKey *rsa.PrivateKey
 }
 
-func (c *Client) login(ctx context.Context, user string, passwd string, passwdIterations int) (*session, error) {
+func (c *Client) login(ctx context.Context, user string, passwd string, passwdIterations int) (*Session, error) {
 	loginHash, encKey := loginHashAndEncKey(user, passwd, passwdIterations)
 
 	form := url.Values{
@@ -137,11 +141,11 @@ func (c *Client) login(ctx context.Context, user string, passwd string, passwdIt
 		return nil, err
 	}
 
-	return &session{
-		passwdIterations: passwdIterations,
-		token:            rsp.Token,
-		encryptionKey:    encKey,
-		privateKey:       privateKey,
+	return &Session{
+		PasswdIterations: passwdIterations,
+		Token:            rsp.Token,
+		EncryptionKey:    encKey,
+		PrivateKey:       privateKey,
 	}, nil
 }
 
