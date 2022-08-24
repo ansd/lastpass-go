@@ -124,7 +124,7 @@ func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
 	}
 
 	accts := make([]*Account, 0)
-	key := c.session.encryptionKey
+	key := c.session.EncryptionKey
 	var share share
 
 	for _, chunk := range chunks {
@@ -148,8 +148,8 @@ func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
 		case chunkIDFromString("SHAR"):
 			share, err = parseShare(
 				bytes.NewReader(chunk.payload),
-				c.session.encryptionKey,
-				c.session.privateKey)
+				c.session.EncryptionKey,
+				c.session.PrivateKey)
 			if err != nil {
 				return nil, err
 			}
@@ -397,8 +397,8 @@ func (c *Client) getShare(ctx context.Context, shareName string) (share, error) 
 		if chunk.id == chunkIDFromString("SHAR") {
 			share, err := parseShare(
 				bytes.NewReader(chunk.payload),
-				c.session.encryptionKey,
-				c.session.privateKey)
+				c.session.EncryptionKey,
+				c.session.PrivateKey)
 			if err != nil {
 				return share, err
 			}
