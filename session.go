@@ -27,8 +27,12 @@ type Session struct {
 	// is hashed using PBKDF2 before being sent to LastPass.
 	PasswdIterations int
 
+	// Token is the session token returned by LastPass during
+	// the login process.
 	Token string
 
+	// EncryptionKey is derived by hashing the user's password
+	// using PBKDF2.
 	EncryptionKey []byte
 
 	// User's private key for decrypting sharing keys (encryption keys
