@@ -35,9 +35,11 @@ type Session struct {
 	// using PBKDF2.
 	EncryptionKey []byte
 
-	// User's private key for decrypting sharing keys (encryption keys
-	// of shared folders).
-	PrivateKey *rsa.PrivateKey
+	// OptSharingKey is the user's private key for decrypting sharing
+	// keys. This is used for encryption keys of shared folders.
+	//
+	// This is nil if the user has not generated a sharing key.
+	OptSharingKey *rsa.PrivateKey
 }
 
 func (c *Client) login(ctx context.Context, user string, passwd string, passwdIterations int) (*Session, error) {
@@ -140,7 +142,7 @@ func (c *Client) login(ctx context.Context, user string, passwd string, passwdIt
 		}
 	}
 
-	privateKey, err := decryptPrivateKey(rsp.PrivateKeyEncrypted, encKey)
+	optPrivateKey, err := decryptPrivateKey(rsp.PrivateKeyEncrypted, encKey)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +151,7 @@ func (c *Client) login(ctx context.Context, user string, passwd string, passwdIt
 		PasswdIterations: passwdIterations,
 		Token:            rsp.Token,
 		EncryptionKey:    encKey,
-		PrivateKey:       privateKey,
+		OptSharingKey:    optPrivateKey,
 	}, nil
 }
 
