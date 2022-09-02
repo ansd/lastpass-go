@@ -162,7 +162,7 @@ func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
 			share, err = parseShare(
 				bytes.NewReader(chunk.payload),
 				c.session.EncryptionKey,
-				c.session.PrivateKey)
+				c.session.OptSharingKey)
 			if err != nil {
 				return nil, err
 			}
@@ -411,7 +411,7 @@ func (c *Client) getShare(ctx context.Context, shareName string) (share, error) 
 			share, err := parseShare(
 				bytes.NewReader(chunk.payload),
 				c.session.EncryptionKey,
-				c.session.PrivateKey)
+				c.session.OptSharingKey)
 			if err != nil {
 				return share, err
 			}
