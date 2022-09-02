@@ -82,6 +82,12 @@ func (c *Client) Accounts(ctx context.Context) ([]*Account, error) {
 	return c.parseBlob(bytes.NewReader(blob))
 }
 
+// FetchEncryptedAccounts fetches the user's encrypted accounts from LastPass.
+// The returned []byte can be parsed using the ParseEncryptedAccounts method.
+func (c *Client) FetchEncryptedAccounts(ctx context.Context) ([]byte, error) {
+	return c.fetchBlob(ctx)
+}
+
 func (c *Client) fetchBlob(ctx context.Context) ([]byte, error) {
 	endpoint := c.baseURL + EndpointGetAccts
 	u, err := url.Parse(endpoint)
@@ -115,6 +121,13 @@ func (c *Client) fetchBlob(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 	return decodeBase64(blobBase64)
+}
+
+// ParseEncryptedAccounts parses encrypted accounts into a []*Account.
+// The original encrypted accounts data can be obtained from LastPass
+// using the FetchEncryptedAccounts method.
+func (c *Client) ParseEncryptedAccounts(r io.Reader) ([]*Account, error) {
+	return c.parseBlob(r)
 }
 
 func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
