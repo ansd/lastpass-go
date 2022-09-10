@@ -10,7 +10,11 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var client *lastpass.Client
+var (
+	client    *lastpass.Client
+	username2 string
+	password2 string
+)
 
 func TestIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -18,13 +22,18 @@ func TestIntegration(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	username := os.Getenv("LASTPASS_USERNAME_1")
-	Expect(username).NotTo(BeEmpty())
-	passwd := os.Getenv("LASTPASS_MASTER_PASSWORD_1")
-	Expect(passwd).NotTo(BeEmpty())
+	username1 := os.Getenv("LASTPASS_USERNAME_1")
+	Expect(username1).NotTo(BeEmpty())
+	password1 := os.Getenv("LASTPASS_MASTER_PASSWORD_1")
+	Expect(password1).NotTo(BeEmpty())
+
+	username2 = os.Getenv("LASTPASS_USERNAME_2")
+	Expect(username2).NotTo(BeEmpty())
+	password2 = os.Getenv("LASTPASS_MASTER_PASSWORD_2")
+	Expect(password2).NotTo(BeEmpty())
 
 	var err error
-	client, err = lastpass.NewClient(context.Background(), username, passwd)
+	client, err = lastpass.NewClient(context.Background(), username1, password1)
 	Expect(err).NotTo(HaveOccurred())
 })
 

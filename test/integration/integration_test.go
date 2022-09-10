@@ -1,8 +1,12 @@
 package integration_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/cookiejar"
 	"os"
 	"strconv"
 	"time"
@@ -107,12 +111,8 @@ var _ = Describe("Integration", func() {
 			Expect(client.Add(context.Background(), acct)).To(Succeed())
 
 			By("client 2 logging in")
-			username2 := os.Getenv("LASTPASS_USERNAME_2")
-			Expect(username2).NotTo(BeEmpty())
-			passwd2 := os.Getenv("LASTPASS_MASTER_PASSWORD_2")
-			Expect(passwd2).NotTo(BeEmpty())
 			var err error
-			client2, err := NewClient(context.Background(), username2, passwd2)
+			client2, err := NewClient(context.Background(), username2, password2)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("client 2 reading")
@@ -153,7 +153,102 @@ var _ = Describe("Integration", func() {
 					"Account cannot be written to read-only shared folder %s.", shareReadOnly)))
 		})
 	})
+
+	Context("offline client", func() {
+		It("can buffer and defer HTTP requests", func() {
+			cookieJar, err := cookiejar.New(nil)
+			Expect(err).NotTo(HaveOccurred())
+			onlineHTTPClient := &http.Client{
+				Jar: cookieJar,
+			}
+			onlineClient, err := NewClient(
+				context.Background(),
+				username2,
+				password2,
+				WithHTTPClient(onlineHTTPClient),
+			)
+			Expect(err).NotTo(HaveOccurred())
+
+			acct := &Account{
+				ID:       "",
+				Name:     "offline test site",
+				Username: "offline test user",
+				Password: "offline test pwd",
+				URL:      "https://offlineTestURL",
+			}
+			Expect(onlineClient.Add(context.Background(), acct)).To(Succeed())
+
+			encryptedAccounts, err := onlineClient.FetchEncryptedAccounts(context.Background())
+			Expect(err).ToNot(HaveOccurred())
+
+			session, err := onlineClient.Session()
+			Expect(err).ToNot(HaveOccurred())
+
+			offlineHTTPClient := &offlineHTTPClient{}
+			offlineClient, err := NewClientFromSession(
+				context.Background(),
+				session,
+				WithHTTPClient(offlineHTTPClient))
+			Expect(err).ToNot(HaveOccurred())
+
+			accounts, err := offlineClient.ParseEncryptedAccounts(bytes.NewReader(encryptedAccounts))
+			Expect(err).ToNot(HaveOccurred())
+
+			matchAccount := PointTo(MatchFields(IgnoreExtras, Fields{
+				"ID":       Equal(acct.ID),
+				"Name":     Equal(acct.Name),
+				"Username": Equal(acct.Username),
+				"Password": Equal(acct.Password),
+				"URL":      Equal(acct.URL),
+			}))
+			Expect(accounts).To(ContainElement(matchAccount))
+
+			// should buffer the delete request in the offlineHTTPClient
+			Expect(offlineClient.Delete(context.Background(), acct)).To(Succeed())
+			Expect(offlineHTTPClient.requests).To(HaveLen(1))
+
+			// check that account did not really get deleted
+			Expect(accountForID(onlineClient, acct.ID)).To(matchAccount)
+
+			// Let's really delete the account using the buffered request from the offlineHTTPClient.
+			httpClient := &http.Client{
+				// valid cookie must be set
+				Jar: cookieJar,
+			}
+			resp, err := httpClient.Do(offlineHTTPClient.requests[0])
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp).To(HaveHTTPStatus(http.StatusOK))
+			Expect(resp).To(HaveHTTPBody(ContainSubstring("msg=\"accountdeleted\"")))
+			Expect(accountForID(onlineClient, acct.ID)).To(BeNil())
+
+			Expect(onlineClient.Logout(context.Background())).To(Succeed())
+		})
+	})
 })
+
+type offlineHTTPClient struct {
+	requests []*http.Request
+}
+
+// handles only lastpass.Client.Delete()
+func (c *offlineHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	switch req.URL.Path {
+	case "/login_check.php":
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body: io.NopCloser(bytes.NewBufferString(
+				"<response> <ok accts_version=\"111\"/> </response>")),
+		}, nil
+	case "/show_website.php":
+		c.requests = append(c.requests, req)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body: io.NopCloser(bytes.NewBufferString(
+				"<xmlresponse><result aid=\"111\" msg=\"accountdeleted\"></result></xmlresponse>")),
+		}, nil
+	}
+	return nil, fmt.Errorf("unexpected request for path: %s", req.URL.Path)
+}
 
 func accountForID(c *Client, accountID string) *Account {
 	accounts, err := c.Accounts(context.Background())
