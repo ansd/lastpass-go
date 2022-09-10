@@ -289,6 +289,7 @@ func (c *Client) Delete(ctx context.Context, account *Account) error {
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 
 	var response struct {
 		Result result `xml:"result"`
@@ -298,7 +299,6 @@ func (c *Client) Delete(ctx context.Context, account *Account) error {
 		return &AccountNotFoundError{account.ID}
 	}
 
-	defer res.Body.Close()
 	err = xml.NewDecoder(res.Body).Decode(&response)
 	if err != nil {
 		return err
@@ -384,12 +384,12 @@ func (c *Client) upsert(ctx context.Context, acct *Account) (result, error) {
 	if err != nil {
 		return response.Result, err
 	}
+	defer res.Body.Close()
 
 	if res.Header.Get("Content-Length") == "0" {
 		return response.Result, &AccountNotFoundError{acct.ID}
 	}
 
-	defer res.Body.Close()
 	err = xml.NewDecoder(res.Body).Decode(&response)
 	return response.Result, err
 }
@@ -403,13 +403,13 @@ func (c *Client) loggedIn(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	defer res.Body.Close()
 	type ok struct {
 		AcctsVersion string `xml:"accts_version,attr"`
 	}
 	var response struct {
 		Ok ok `xml:"ok"`
 	}
-	defer res.Body.Close()
 	if err = xml.NewDecoder(res.Body).Decode(&response); err != nil {
 		return false, err
 	}

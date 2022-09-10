@@ -30,10 +30,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	defer respGetAccts.Body.Close()
 	if respGetAccts.StatusCode != http.StatusOK {
 		panic("/getaccts.php " + respGetAccts.Status)
 	}
-	defer respGetAccts.Body.Close()
 	blob, err := ioutil.ReadAll(respGetAccts.Body)
 	if err != nil {
 		panic(err)

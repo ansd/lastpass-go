@@ -62,13 +62,13 @@ func add(client *http.Client, token string, acct *lastpass.Account) {
 	if err != nil {
 		panic(err)
 	}
+	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		panic(res.Status)
 	}
 	if res.Header.Get("Content-Length") == "0" {
 		panic("Empty response")
 	}
-	defer res.Body.Close()
 	if err = xml.NewDecoder(res.Body).Decode(&response); err != nil {
 		panic(err)
 	}

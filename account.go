@@ -106,12 +106,12 @@ func (c *Client) FetchEncryptedAccounts(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GET %s: %s", u.String(), res.Status)
 	}
 
-	defer res.Body.Close()
 	blobBase64, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err

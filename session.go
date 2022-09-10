@@ -82,7 +82,9 @@ func (c *Client) login(ctx context.Context, user string, passwd string, passwdIt
 	}
 	rsp := &response{}
 	err = xml.NewDecoder(httpRsp.Body).Decode(rsp)
-	_ = httpRsp.Body.Close()
+	if closeErr := httpRsp.Body.Close(); closeErr != nil {
+		return nil, closeErr
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +113,9 @@ func (c *Client) login(ctx context.Context, user string, passwd string, passwdIt
 				return nil, err
 			}
 			err = xml.NewDecoder(oobResp.Body).Decode(&rsp)
-			_ = oobResp.Body.Close()
+			if closeErr := oobResp.Body.Close(); closeErr != nil {
+				return nil, closeErr
+			}
 			if err != nil {
 				return nil, err
 			}

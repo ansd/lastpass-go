@@ -69,12 +69,12 @@ func NewClient() (*http.Client, *Response) {
 	if err != nil {
 		panic(err)
 	}
+	defer rsp.Body.Close()
 	if rsp.StatusCode != http.StatusOK {
 		panic("/login.php " + rsp.Status)
 	}
 
 	parsed := &Response{EncryptionKey: encryptionKey}
-	defer rsp.Body.Close()
 	if err := xml.NewDecoder(rsp.Body).Decode(parsed); err != nil {
 		panic(err)
 	}
