@@ -27,19 +27,25 @@ type Session struct {
 	// is hashed using PBKDF2 before being sent to LastPass.
 	PasswdIterations int
 
-	// Token is the session token returned by LastPass during
-	// the login process.
+	// Token is the session token returned by LastPass during the login process.
 	Token string
 
-	// EncryptionKey is derived by hashing the user's password
-	// using PBKDF2.
+	// EncryptionKey is derived by hashing the user's master password using PBKDF2.
 	EncryptionKey []byte
 
-	// OptSharingKey is the user's private key for decrypting sharing
-	// keys. This is used for encryption keys of shared folders.
+	// OptPrivateKey is the user's private key for decrypting sharing
+	// keys. Sharing keys are used for shared folders.
 	//
-	// This is nil if the user has not generated a sharing key.
-	OptSharingKey *rsa.PrivateKey
+	// The first time the user logs into LastPass using any official LastPass client
+	// (e.g. browser extension) a key pair gets created.
+	// The public key is uploaded unencrypted to LastPass so that
+	// other users can encrypt data for the user (e.g. sharing keys).
+	// The private key gets encrypted locally (within the client) with the user's encryption key
+	// and also uploaded to LastPass.
+	//
+	// This is nil if the user has not generated a sharing key. See
+	// https://support.lastpass.com/help/why-am-i-seeing-an-error-no-private-key-cannot-decrypt-pending-shares-message-lp010147
+	OptPrivateKey *rsa.PrivateKey
 }
 
 func (c *Client) login(ctx context.Context, user string, passwd string, passwdIterations int) (*Session, error) {
@@ -155,7 +161,7 @@ func (c *Client) login(ctx context.Context, user string, passwd string, passwdIt
 		PasswdIterations: passwdIterations,
 		Token:            rsp.Token,
 		EncryptionKey:    encKey,
-		OptSharingKey:    optPrivateKey,
+		OptPrivateKey:    optPrivateKey,
 	}, nil
 }
 

@@ -154,7 +154,7 @@ func (c *Client) ParseEncryptedAccounts(r io.Reader) ([]*Account, error) {
 			share, err = parseShare(
 				bytes.NewReader(chunk.payload),
 				c.session.EncryptionKey,
-				c.session.OptSharingKey)
+				c.session.OptPrivateKey)
 			if err != nil {
 				return nil, err
 			}
@@ -403,7 +403,7 @@ func (c *Client) getShare(ctx context.Context, shareName string) (share, error) 
 			share, err := parseShare(
 				bytes.NewReader(chunk.payload),
 				c.session.EncryptionKey,
-				c.session.OptSharingKey)
+				c.session.OptPrivateKey)
 			if err != nil {
 				return share, err
 			}
