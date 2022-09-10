@@ -75,20 +75,16 @@ func (c *Client) Accounts(ctx context.Context) ([]*Account, error) {
 	if !loggedIn {
 		return nil, &AuthenticationError{"client not logged in"}
 	}
-	blob, err := c.fetchBlob(ctx)
+	blob, err := c.FetchEncryptedAccounts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return c.parseBlob(bytes.NewReader(blob))
+	return c.ParseEncryptedAccounts(bytes.NewReader(blob))
 }
 
 // FetchEncryptedAccounts fetches the user's encrypted accounts from LastPass.
 // The returned []byte can be parsed using the ParseEncryptedAccounts method.
 func (c *Client) FetchEncryptedAccounts(ctx context.Context) ([]byte, error) {
-	return c.fetchBlob(ctx)
-}
-
-func (c *Client) fetchBlob(ctx context.Context) ([]byte, error) {
 	endpoint := c.baseURL + EndpointGetAccts
 	u, err := url.Parse(endpoint)
 	if err != nil {
@@ -127,10 +123,6 @@ func (c *Client) fetchBlob(ctx context.Context) ([]byte, error) {
 // The original encrypted accounts data can be obtained from LastPass
 // using the FetchEncryptedAccounts method.
 func (c *Client) ParseEncryptedAccounts(r io.Reader) ([]*Account, error) {
-	return c.parseBlob(r)
-}
-
-func (c *Client) parseBlob(r io.Reader) ([]*Account, error) {
 	chunks, err := getCompleteChunks(r)
 	if err != nil {
 		return nil, err
@@ -398,7 +390,7 @@ func areComplete(chunks []*chunk) bool {
 }
 
 func (c *Client) getShare(ctx context.Context, shareName string) (share, error) {
-	blob, err := c.fetchBlob(ctx)
+	blob, err := c.FetchEncryptedAccounts(ctx)
 	if err != nil {
 		return share{}, err
 	}
